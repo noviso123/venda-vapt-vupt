@@ -133,10 +133,37 @@
         {% for product in products %}
         <div class="glass p-5 rounded-3xl flex flex-col gap-4 relative group hover:border-primary/30 transition-all">
             <div class="flex items-center gap-4">
-                <div class="w-20 h-20 rounded-2xl bg-slate-100 overflow-hidden shrink-0 shadow-sm">
-                    {% if product.image_url %}
-                    <img src="{{ product.image_url }}" class="w-full h-full object-cover">
-                    {% endif %}
+                <div class="space-y-2">
+                    <!-- Imagem Principal -->
+                    <div
+                        class="w-20 h-20 rounded-2xl bg-slate-100 overflow-hidden shrink-0 shadow-sm relative group/img">
+                        {% if product.image_url %}
+                        <img src="{{ product.image_url }}" class="w-full h-full object-cover">
+                        {% endif %}
+                    </div>
+                    <!-- Galeria Extra -->
+                    <div class="flex flex-wrap gap-1 max-w-[200px]">
+                        {% for img in product.product_images %}
+                        <div class="w-8 h-8 rounded bg-slate-100 relative group/mini">
+                            <img src="{{ img.image_url }}" class="w-full h-full object-cover rounded">
+                            <form action="/vendedor/produto/imagem/{{ img.id }}/delete" method="POST"
+                                class="absolute inset-0 bg-black/50 hidden group-hover/mini:flex items-center justify-center rounded cursor-pointer"
+                                onclick="this.submit()">
+                                <span class="text-white text-[10px]">✕</span>
+                            </form>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Botão Add Imagem -->
+                        <form action="/vendedor/produto/{{ product.id }}/imagem/nova" method="POST"
+                            enctype="multipart/form-data" class="w-8 h-8">
+                            <label
+                                class="w-full h-full bg-slate-100 rounded border border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200">
+                                <span class="text-slate-400 text-xs">+</span>
+                                <input type="file" name="file" class="hidden" onchange="this.form.submit()">
+                            </label>
+                        </form>
+                    </div>
                 </div>
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-slate-800 truncate">{{ product.name }}</h4>
@@ -312,7 +339,11 @@
             document.getElementById( 'p_ext' ).value = url;
             document.getElementById( 'p_stock' ).value = data.stock || 1;
 
-            alert( 'Dados importados! Se houver uma imagem ou vídeo, eles foram vinculados.' );
+            document.getElementById( 'p_stock' ).value = data.stock || 1;
+
+            let msg = 'Dados importados!';
+            if ( data.images && data.images.length > 1 ) msg += ` Encontradas ${ data.images.length } imagens. Salve o produto para gerenciá-las.`;
+            alert( msg );
         } catch ( e )
         {
             alert( 'Erro ao importar: ' + e.message );

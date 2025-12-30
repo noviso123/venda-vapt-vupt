@@ -36,18 +36,33 @@
     <div
         class="glass p-6 rounded-3xl group transition-all hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-2">
         <div class="aspect-square rounded-2xl overflow-hidden mb-6 bg-slate-100 relative shadow-inner">
-            {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.name }}"
-                class="w-full h-full object-cover group-hover:scale-110 transition-all duration-500">
-            {% else %}
-            <div class="w-full h-full flex items-center justify-center text-slate-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+            <div class="relative w-full h-full group/slider">
+                {% if product.image_url %}
+                <img src="{{ product.image_url }}" alt="{{ product.name }}" id="img-{{ product.id }}"
+                    class="w-full h-full object-cover group-hover:scale-110 transition-all duration-500"
+                    data-main="{{ product.image_url }}"
+                    data-images="{{ ([product.image_url] + (product.product_images|map(attribute='image_url')|list))|join(',') }}">
+
+                {% if product.product_images %}
+                <div
+                    class="absolute bottom-2 left-0 right-0 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="w-1.5 h-1.5 rounded-full bg-white shadow"></span>
+                    {% for img in product.product_images %}
+                    <span class="w-1.5 h-1.5 rounded-full bg-white/50 shadow"></span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-slate-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
 
             <!-- TAGS DE STATUS -->
             <div class="absolute top-4 right-4 flex flex-col gap-2 items-end">
@@ -154,7 +169,6 @@
                 const res = JSON.parse( evt.detail.xhr.responseText );
                 if ( res.status === 'success' )
                 {
-                    // Feedback visual de sucesso (opcional)
                     const indicator = document.getElementById( 'cart-indicator' );
                     indicator.classList.add( 'scale-125', 'bg-red-500' );
                     setTimeout( () => indicator.classList.remove( 'scale-125', 'bg-red-500' ), 500 );
@@ -164,6 +178,33 @@
                 }
             } catch ( e ) { }
         }
+    } );
+
+    // Script de Carrossel Simples
+    document.querySelectorAll( '[data-images]' ).forEach( img =>
+    {
+        const images = img.dataset.images.split( ',' );
+        if ( images.length <= 1 ) return;
+
+        let idx = 0;
+        let interval;
+
+        const parent = img.closest( '.group' );
+        parent.addEventListener( 'mouseenter', () =>
+        {
+            interval = setInterval( () =>
+            {
+                idx = ( idx + 1 ) % images.length;
+                img.src = images[ idx ];
+            }, 1500 );
+        } );
+
+        parent.addEventListener( 'mouseleave', () =>
+        {
+            clearInterval( interval );
+            img.src = img.dataset.main;
+            idx = 0;
+        } );
     } );
 </script>
 {% endblock %}

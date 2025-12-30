@@ -80,7 +80,7 @@ def index():
     query = request.args.get('q', '').strip()
     products = []
     try:
-        req = supabase.table('products').select("*").eq('store_id', store['id'])
+        req = supabase.table('products').select("*, product_images(*)").eq('store_id', store['id'])
         if query: req = req.ilike('name', f'%{query}%')
         products = req.order('created_at', desc=True).execute().data or []
     except Exception as e: app.logger.error(f"Erro Vitrine: {e}")
@@ -136,6 +136,10 @@ def add_to_cart():
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     store = get_store()
+    cart = session.get('cart', {})
+    if not cart and request.method == 'GET':
+        return render_template('checkout.html', store=store, empty_cart=True)
+
     if request.method == 'POST':
         street = request.form.get('street', 'Não informado')
         number = request.form.get('number', 'S/N')
@@ -244,6 +248,7 @@ def register():
             if res.data:
                 session['customer_id'] = res.data[0]['id']
                 session['customer_name'] = res.data[0]['name']
+                if session.get('cart'): return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
         except Exception as e:
             return render_template('register.html', error=f"Erro ao cadastrar: {e}")
@@ -272,6 +277,7 @@ def admin_login():
             if c_res.data:
                 session['customer_id'] = c_res.data[0]['id']
                 session['customer_name'] = c_res.data[0]['name']
+                if session.get('cart'): return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
         except: pass
 
@@ -302,7 +308,7 @@ def admin_dashboard():
     if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
         try:
             orders = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute().data
-            products = supabase.table('products').select("*").eq('store_id', store['id']).order('created_at', desc=True).execute().data
+            products = supabase.table('products').select("*, product_images(*)").eq('store_id', store['id']).order('created_at', desc=True).execute().data
         except: pass
     return render_template('admin.html', store=store, orders=orders, products=products)
 
@@ -417,6 +423,7 @@ def fetch_metadata():
         return jsonify({
             "title": title,
             "image": image,
+            "images": [image] if image else [],
             "description": description,
             "video": video,
             "stock": 1
@@ -424,6 +431,25 @@ def fetch_metadata():
     except Exception as e:
         app.logger.error(f"Erro Scraper: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/vendedor/produto/<product_id>/imagem/nova', methods=['POST'])
+def admin_add_product_image(product_id):
+    if not check_auth(): return redirect(url_for('admin_login'))
+    file = request.files.get('file')
+    if file and file.filename:
+        try:
+            filename = f"prod_gal_{uuid.uuid4()}.{file.filename.split('.')[-1]}"
+            supabase.storage.from_('product-images').upload(filename, file.read())
+            img_url = supabase.storage.from_('product-images').get_public_url(filename)
+            supabase.table('product_images').insert({"product_id": product_id, "image_url": img_url}).execute()
+        except: pass
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/vendedor/produto/imagem/<image_id>/delete', methods=['POST'])
+def admin_delete_product_image(image_id):
+    if not check_auth(): return redirect(url_for('admin_login'))
+    supabase.table('product_images').delete().eq('id', image_id).execute()
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/vendedor/clientes')
 def admin_customers():
