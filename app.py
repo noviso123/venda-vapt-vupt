@@ -56,7 +56,7 @@ init_db()
 
 # --- HELPERS ---
 def get_store():
-    fallback = {"id": str(uuid.uuid4()), "name": "Vapt Vupt", "whatsapp": "5511999999999", "primary_color": "#10B981"}
+    fallback = {"id": str(uuid.uuid4()), "name": "Vapt Vupt", "whatsapp": "5511999999999", "primary_color": "#0EA5E9"}
     try:
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
         return res.data[0] if res.data else fallback

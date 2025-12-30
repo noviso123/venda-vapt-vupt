@@ -170,8 +170,7 @@
                     <h4 class="font-bold text-slate-800 truncate">{{ product.name }}</h4>
                     <p class="text-sm font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</p>
                     {% if product.external_url %}
-                    <span
-                        class="text-[9px] font-black bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full uppercase">LINK
+                    <span class="text-[9px] font-black bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full uppercase">LINK
                         EXTERNO</span>
                     {% endif %}
                 </div>
@@ -233,13 +232,13 @@
                         <div>
                             <label class="block text-xs font-bold mb-2">Cor Primária</label>
                             <input type="color" name="primary_color"
-                                value="{{ store.primary_color if store else '#10B981' }}"
+                                value="{{ store.primary_color if store else '#0EA5E9' }}"
                                 class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
                         </div>
                         <div>
                             <label class="block text-xs font-bold mb-2">Cor Secundária</label>
                             <input type="color" name="secondary_color"
-                                value="{{ store.secondary_color if store else '#059669' }}"
+                                value="{{ store.secondary_color if store else '#0284C7' }}"
                                 class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
                         </div>
                     </div>

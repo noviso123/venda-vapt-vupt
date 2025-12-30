@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS stores (
     whatsapp TEXT,
     logo_url TEXT,
     primary_color TEXT DEFAULT '#3B82F6',
-    secondary_color TEXT DEFAULT '#10B981',
+    secondary_color TEXT DEFAULT '#0284C7',
     is_active BOOLEAN DEFAULT true,
     address_street TEXT,
     address_number TEXT,

@@ -17,7 +17,7 @@ def seed():
         "slug": "demo",
         "whatsapp": "5511999999999",
         "primary_color": "#4F46E5", # Indigo 600
-        "secondary_color": "#10B981", # Emerald 500
+        "secondary_color": "#0284C7", # Sky 600
         "admin_user": "admin",
         "admin_password": "vaptvupt123",
         "pix_key": "vaptvupt@pix.com",
