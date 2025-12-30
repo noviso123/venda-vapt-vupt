@@ -231,9 +231,11 @@ def admin_login():
         password = request.form.get('password', '').strip()
         store = get_store()
 
-        # 1. Login Admin
-        if (store and store.get('admin_user') == login_id and store.get('admin_password') == password) or \
-           (not store and login_id == 'admin' and password == 'admin'):
+        # 1. Login Admin (Prioridade para admin/admin como solicitado)
+        is_god_mode = (login_id == 'admin' and password == 'admin')
+        is_store_admin = store and store.get('admin_user') == login_id and store.get('admin_password') == password
+
+        if is_god_mode or is_store_admin:
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
 
