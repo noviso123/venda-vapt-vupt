@@ -1,5 +1,6 @@
 {
     "version": 2,
+    "name": "vapt-vupt-loja",
     "builds": [
         {
             "src": "app.py",
