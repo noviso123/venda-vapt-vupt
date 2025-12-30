@@ -89,14 +89,16 @@
             <div class="container mx-auto px-4 h-20 flex items-center justify-between">
                 <!-- LOGO -->
                 <a href="/" class="flex items-center gap-3 active:scale-95 transition-all">
-                    <div class="w-14 h-14 flex items-center justify-center">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="Vapt Vupt"
-                            class="w-full h-full object-contain">
+                    <div class="w-12 h-12 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-full h-full">
+                            <rect width="100" height="100" rx="20" fill="#0EA5E9" />
+                            <path d="M30 50 L50 18 L44 50 L70 50 L50 82 L56 50 Z" fill="white" />
+                        </svg>
                     </div>
                     <div class="hidden sm:block">
                         <span
                             class="text-2xl font-black text-slate-800 leading-tight tracking-tighter block uppercase">VAPT
-                            <span class="text-primary">VUPT</span></span>
+                            <span class="text-sky-500">VUPT</span></span>
                         <span
                             class="text-[10px] font-bold text-slate-400 uppercase tracking-[4px] -mt-1 block">Express</span>
                     </div>
@@ -106,7 +108,7 @@
                     <!-- Meus Pedidos (Aparece se já comprou/logou) -->
                     {% if session.customer_id %}
                     <a href="/meus-pedidos"
-                        class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary transition-all font-bold text-sm"
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-500 transition-all font-bold text-sm"
                         title="Ver Meus Pedidos">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
@@ -117,21 +119,44 @@
                     </a>
                     {% endif %}
 
-                    <!-- Login Colaborador / Perfil -->
+                    <!-- Login / Perfil + Logout -->
+                    {% if session.customer_id or session.is_admin %}
+                    <div class="flex items-center gap-1">
+                        <a href="{% if session.is_admin %}/vendedor{% else %}/meus-pedidos{% endif %}"
+                            class="p-3 rounded-xl bg-slate-100 hover:bg-sky-50 transition-all group flex items-center gap-2"
+                            title="{{ session.customer_name if session.customer_id else 'Painel Admin' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6 text-slate-500 group-hover:text-sky-500 transition-all" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span class="text-xs font-black text-slate-500 hidden md:block truncate max-w-[80px]">
+                                {% if session.is_admin %}Admin{% elif session.customer_name %}{{ session.customer_name.split(' ')[0] }}{% endif %}
+                            </span>
+                        </a>
+                        <a href="/logout" class="p-3 rounded-xl bg-red-50 hover:bg-red-100 transition-all group"
+                            title="Sair">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5 text-red-400 group-hover:text-red-600 transition-all" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </a>
+                    </div>
+                    {% else %}
                     <a href="/login"
-                        class="p-3 rounded-2xl bg-slate-100 hover:bg-primary/10 transition-all group flex items-center gap-2"
-                        title="{{ session.customer_name if session.customer_id else 'Área do Vendedor' }}">
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-slate-500 group-hover:text-primary transition-all" fill="none"
+                        class="p-3 rounded-xl bg-sky-500 hover:bg-sky-600 transition-all group flex items-center gap-2"
+                        title="Fazer Login">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        {% if session.customer_id %}
-                        <span
-                            class="text-xs font-black text-slate-500 hidden md:block truncate max-w-[80px]">{{ session.customer_name.split(' ')[0] }}</span>
-                        {% endif %}
+                        <span class="text-xs font-black text-white hidden md:block">Entrar</span>
                     </a>
+                    {% endif %}
 
                     <!-- Carrinho -->
                     <a href="/checkout" id="cart-indicator" class="relative group">

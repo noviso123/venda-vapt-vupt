@@ -13,6 +13,8 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "prod_secret_vapt123")
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 7  # 7 dias em segundos
+app.config['SESSION_PERMANENT'] = True
 
 # Configuração Supabase
 url: str = os.getenv("SUPABASE_URL")
