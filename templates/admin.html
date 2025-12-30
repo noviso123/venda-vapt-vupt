@@ -6,7 +6,8 @@
     <a href="/logout"
         class="text-xs font-bold text-red-400 hover:text-red-600 transition-all uppercase tracking-widest">Sair</a>
 </div>
-<p class="text-slate-500">Gestão da loja: <span class="font-bold text-primary">{{ store.name }}</span></p>
+<p class="text-slate-500">Gestão da loja: <span
+        class="font-bold text-primary">{{ store.name if store else 'Configuração Pendente' }}</span></p>
 </div>
 
 <!-- ABAS -->
@@ -153,23 +154,24 @@
         <form action="/vendedor/configuracoes" method="POST" enctype="multipart/form-data" class="space-y-6">
             <div>
                 <label class="block text-sm font-bold mb-2">Nome da Loja</label>
-                <input type="text" name="name" value="{{ store.name }}"
+                <input type="text" name="name" value="{{ store.name if store else '' }}"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200">
             </div>
             <div>
                 <label class="block text-sm font-bold mb-2">WhatsApp de Vendas</label>
-                <input type="text" name="whatsapp" value="{{ store.whatsapp }}"
+                <input type="text" name="whatsapp" value="{{ store.whatsapp if store else '' }}"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold mb-2">Cor Primária</label>
-                    <input type="color" name="primary_color" value="{{ store.primary_color }}"
+                    <input type="color" name="primary_color" value="{{ store.primary_color if store else '#3B82F6' }}"
                         class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
                 </div>
                 <div>
                     <label class="block text-sm font-bold mb-2">Cor Secundária</label>
-                    <input type="color" name="secondary_color" value="{{ store.secondary_color }}"
+                    <input type="color" name="secondary_color"
+                        value="{{ store.secondary_color if store else '#10B981' }}"
                         class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
                 </div>
             </div>
@@ -178,7 +180,7 @@
                 <input type="file" name="file" accept="image/*"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white">
                 <p class="text-xs text-slate-400 mt-1">Ou cole uma URL abaixo:</p>
-                <input type="text" name="logo_url" value="{{ store.logo_url }}"
+                <input type="text" name="logo_url" value="{{ store.logo_url if store else '' }}"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200 mt-2">
             </div>
             <div class="border-t border-slate-100 pt-6">
@@ -186,7 +188,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-bold mb-2">Chave PIX (Aleatória, CPF, etc)</label>
-                        <input type="text" name="pix_key" value="{{ store.pix_key or '' }}"
+                        <input type="text" name="pix_key" value="{{ store.pix_key if store else '' }}"
                             placeholder="Cole sua chave aqui (pode ser aleatória)"
                             class="w-full px-4 py-3 rounded-xl border border-slate-200">
                         <p class="text-[10px] text-slate-400 mt-1 uppercase">Use chaves aleatórias para manter sua
@@ -194,7 +196,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-bold mb-2">Nome do Beneficiário</label>
-                        <input type="text" name="pix_name" value="{{ store.pix_name or '' }}"
+                        <input type="text" name="pix_name" value="{{ store.pix_name if store else '' }}"
                             placeholder="Nome como no banco"
                             class="w-full px-4 py-3 rounded-xl border border-slate-200">
                     </div>
@@ -208,12 +210,13 @@
             <div class="border-t border-slate-100 pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold mb-2 text-primary">Usuário Administrativo</label>
-                    <input type="text" name="admin_user" value="{{ store.admin_user }}"
+                    <input type="text" name="admin_user" value="{{ store.admin_user if store else 'admin' }}"
                         class="w-full px-4 py-3 rounded-xl border border-primary/20 bg-primary/5 font-bold">
                 </div>
                 <div>
                     <label class="block text-sm font-bold mb-2 text-primary">Nova Senha Administrativa</label>
-                    <input type="text" name="admin_password" value="{{ store.admin_password }}"
+                    <input type="text" name="admin_password"
+                        value="{{ store.admin_password if store else 'vaptvupt123' }}"
                         class="w-full px-4 py-3 rounded-xl border border-primary/20 bg-primary/5 font-bold">
                 </div>
                 <p class="md:col-span-2 text-[10px] text-slate-400 mt-1 uppercase font-black">Guarde bem estas
@@ -223,20 +226,20 @@
                 <h4 class="font-bold text-sm mb-4">Endereço de Retirada (Uber)</h4>
                 <div class="grid grid-cols-3 gap-4">
                     <div class="col-span-2">
-                        <input type="text" name="address_street" value="{{ store.address_street }}" placeholder="Rua"
-                            class="w-full px-4 py-3 rounded-xl border border-slate-200 mb-2">
+                        <input type="text" name="address_street" value="{{ store.address_street if store else '' }}"
+                            placeholder="Rua" class="w-full px-4 py-3 rounded-xl border border-slate-200 mb-2">
                     </div>
                     <div class="col-span-1">
-                        <input type="text" name="address_number" value="{{ store.address_number }}" placeholder="Nº"
-                            class="w-full px-4 py-3 rounded-xl border border-slate-200 mb-2">
+                        <input type="text" name="address_number" value="{{ store.address_number if store else '' }}"
+                            placeholder="Nº" class="w-full px-4 py-3 rounded-xl border border-slate-200 mb-2">
                     </div>
                     <div class="col-span-2">
-                        <input type="text" name="address_city" value="{{ store.address_city }}" placeholder="Cidade"
-                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                        <input type="text" name="address_city" value="{{ store.address_city if store else '' }}"
+                            placeholder="Cidade" class="w-full px-4 py-3 rounded-xl border border-slate-200">
                     </div>
                     <div class="col-span-1">
-                        <input type="text" name="address_state" value="{{ store.address_state }}" placeholder="UF"
-                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                        <input type="text" name="address_state" value="{{ store.address_state if store else '' }}"
+                            placeholder="UF" class="w-full px-4 py-3 rounded-xl border border-slate-200">
                     </div>
                 </div>
             </div>

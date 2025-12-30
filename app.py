@@ -193,12 +193,24 @@ def order_confirmation(order_id):
 @app.route('/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
         store = get_store()
-        if store and store.get('admin_user') == username and store.get('admin_password') == password:
+
+        # 1. Login via Banco de Dados (Principal)
+        if store:
+            db_user = (store.get('admin_user') or 'admin').strip()
+            db_pass = (store.get('admin_password') or 'vaptvupt123').strip()
+            if username == db_user and password == db_pass:
+                session['is_admin'] = True
+                return redirect(url_for('admin_dashboard'))
+
+        # 2. Fallback de Emergência (Se a loja ainda não foi criada no banco)
+        if not store and username == 'admin' and password == 'vaptvupt123':
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
+
+        print(f"Tentativa de login falhou: {username}")
         return render_template('login.html', error="Usuário ou Senha incorretos")
 
     return render_template('login.html')
