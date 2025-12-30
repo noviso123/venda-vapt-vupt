@@ -9,7 +9,7 @@ import uuid
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev_secret_key")
+app.secret_key = os.getenv("SECRET_KEY", "prod_secret_vapt123")
 
 # Configuração Supabase
 url: str = os.getenv("SUPABASE_URL")
@@ -23,11 +23,6 @@ def init_db():
         res = supabase.table('stores').select("id").eq('slug', 'default').execute()
         if not res.data:
             print("Executando setup inicial do banco de dados...")
-            with open('setup_db.sql', 'r', encoding='utf-8') as f:
-                sql = f.read()
-            # Como não podemos rodar SQL arbitrário via SDK Rest,
-            # assumimos que tabelas existem ou usamos RPC se configurado.
-            # Por agora, garantimos que seeds rodam se tabelas existirem.
             supabase.table('stores').upsert({
                 "slug": "default",
                 "name": "Venda Vapt Vupt",
@@ -41,144 +36,94 @@ def init_db():
 init_db() # Chamado no boot para garantir que a loja principal exista
 
 def get_store():
-    # Em Single-Tenant, sempre pegamos a única loja ativada
-    res = supabase.table('stores').select("*").eq('slug', 'default').execute()
-    return res.data[0] if res.data else None
+    try:
+        res = supabase.table('stores').select("*").eq('slug', 'default').execute()
+        return res.data[0] if res.data else None
+    except:
+        return None
 
 # --- HELPERS ---
 def check_auth():
-    if 'is_admin' not in session:
-        return False
-    return True
+    return 'is_admin' in session
 
-# --- ROTAS PRINCIPAIS ---
+# --- ROTAS PRINCIPAIS (VITRINE) ---
 
 @app.route('/')
 def index():
     store = get_store()
     if not store: return "Sistema em configuração. Aguarde...", 503
 
-    # Buscar produtos da loja
-    products_res = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True).execute()
-    products = products_res.data
+    products = []
+    try:
+        products_res = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True).execute()
+        products = products_res.data
+    except: pass
 
     return render_template('store.html', store=store, products=products)
 
-@app.route('/adicionar_carrinho', methods=['POST'])
+@app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
     product_id = request.form.get('product_id')
-    store_id = request.form.get('store_id')
-
-    if 'cart' not in session:
-        session['cart'] = {}
+    if 'cart' not in session: session['cart'] = {}
 
     cart = session['cart']
     cart[product_id] = cart.get(product_id, 0) + 1
     session['cart'] = cart
 
-    return jsonify({"success": True, "cart_count": sum(cart.values())})
+    return jsonify({"status": "success", "cart_count": sum(cart.values())})
 
-@app.route('/checkout')
+@app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     store = get_store()
-    cart = session.get('cart', {})
-    if not cart:
-        return redirect(url_for('index'))
+    if request.method == 'POST':
+        # Criar Pedido
+        customer_data = {
+            "name": request.form.get('name'),
+            "whatsapp": request.form.get('whatsapp'),
+            "address_full": request.form.get('address')
+        }
 
-    # Buscar detalhes dos itens no carrinho
-    product_ids = list(cart.keys())
-    products_res = supabase.table('products').select("*").in_('id', product_ids).execute()
-    products = products_res.data
+        # Upsert Customer
+        cust_res = supabase.table('customers').upsert(customer_data, on_conflict="whatsapp").execute()
+        customer_id = cust_res.data[0]['id']
 
-    total = 0
-    items = []
-    for p in products:
-        qty = cart[p['id']]
-        subtotal = float(p['price']) * qty
-        total += subtotal
-        items.append({
-            "id": p['id'],
-            "name": p['name'],
-            "price": p['price'],
-            "qty": qty,
-            "subtotal": subtotal
-        })
+        # Calcular Total
+        cart = session.get('cart', {})
+        total = 0
+        order_items = []
 
-    return render_template('checkout.html', store=store, items=items, total=total)
+        for pid, qty in cart.items():
+            p_res = supabase.table('products').select("price").eq('id', pid).execute()
+            price = float(p_res.data[0]['price'])
+            total += price * qty
+            order_items.append({"product_id": pid, "quantity": qty, "unit_price": price})
 
-@app.route('/finalizar_pedido', methods=['POST'])
-def finalize_order():
-    # 1. Pegar dados do cliente e entrega
-    store_id = request.form.get('store_id')
-    customer_whatsapp = request.form.get('whatsapp')
-    customer_name = request.form.get('name')
-    address = request.form.get('address')
+        order_res = supabase.table('orders').insert({
+            "store_id": store['id'],
+            "customer_id": customer_id,
+            "subtotal": total,
+            "total": total,
+            "status": "pending_payment",
+            "delivery_address": customer_data['address_full']
+        }).execute()
 
-    # 2. Upsert Cliente (Supabase)
-    customer_data = {
-        "whatsapp": customer_whatsapp,
-        "name": customer_name,
-        "address_full": address
-    }
-    customer_res = supabase.table('customers').upsert(customer_data, on_conflict='whatsapp').execute()
-    customer = customer_res.data[0]
+        order_id = order_res.data[0]['id']
 
-    # 3. Criar Pedido e Calcular Frete Real
-    from uber_utils import UberDirect
-    uber = UberDirect()
+        # Inserir Itens
+        for item in order_items:
+            item['order_id'] = order_id
+            supabase.table('order_items').insert(item).execute()
 
-    # Endereço da loja (vire do banco ou .env)
-    store_res = supabase.table('stores').select("*").eq('id', store_id).execute()
-    store = store_res.data[0]
-    pickup_address = f"{store['address_street']}, {store['address_number']}, {store['address_city']} - {store['address_state']}"
+        session.pop('cart', None)
+        return redirect(url_for('order_confirmation', order_id=order_id))
 
-    shipping_fee, error = uber.estimate_delivery(pickup_address, address)
-    if error:
-        print(f"Aviso Uber: {error}")
-        shipping_fee = 15.00 # Fallback se a API falhar
-
-    cart = session.get('cart', {})
-    product_ids = list(cart.keys())
-    products_res = supabase.table('products').select("*").in_('id', product_ids).execute()
-    products = products_res.data
-
-    subtotal = sum(float(p['price']) * cart[p['id']] for p in products)
-    total = subtotal + shipping_fee
-
-    order_data = {
-        "store_id": store_id,
-        "customer_id": customer['id'],
-        "status": 'pending_payment',
-        "subtotal": subtotal,
-        "shipping_fee": shipping_fee,
-        "total": total,
-        "delivery_address": address
-    }
-    order_res = supabase.table('orders').insert(order_data).execute()
-    order = order_res.data[0]
-
-    # 4. Inserir Itens do Pedido
-    order_items = []
-    for p in products:
-        order_items.append({
-            "order_id": order['id'],
-            "product_id": p['id'],
-            "quantity": cart[p['id']],
-            "unit_price": p['price']
-        })
-    supabase.table('order_items').insert(order_items).execute()
-
-    # Limpar carrinho
-    session.pop('cart', None)
-
-    return redirect(url_for('order_confirmation', order_id=order['id']))
+    return render_template('checkout.html', store=store)
 
 @app.route('/confirmacao/<order_id>')
 def order_confirmation(order_id):
     order_res = supabase.table('orders').select("*, stores(*)").eq('id', order_id).execute()
     order = order_res.data[0]
 
-    # Gerar Pix usando dados da LOJA
     pix_chave = order['stores'].get('pix_key') or "pendente@pix.com"
     pix_nome = order['stores'].get('pix_name') or order['stores'].get('name', 'VAPT VUPT')
     pix_cidade = order['stores'].get('pix_city') or "SAO PAULO"
@@ -188,7 +133,7 @@ def order_confirmation(order_id):
 
     return render_template('confirmation.html', order=order, qr_code=qr_code, payload=payload)
 
-# --- MARKETING E ADMIN ---
+# --- LOGIN E SEGURANÇA ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def admin_login():
@@ -197,7 +142,7 @@ def admin_login():
         password = request.form.get('password', '').strip()
         store = get_store()
 
-        # 1. Login via Banco de Dados (Principal)
+        # 1. Login via Banco
         if store:
             db_user = (store.get('admin_user') or 'admin').strip()
             db_pass = (store.get('admin_password') or 'vaptvupt123').strip()
@@ -205,12 +150,11 @@ def admin_login():
                 session['is_admin'] = True
                 return redirect(url_for('admin_dashboard'))
 
-        # 2. Fallback de Emergência (Se a loja ainda não foi criada no banco)
-        if not store and username == 'admin' and password == 'vaptvupt123':
+        # 2. Fallback de Emergência
+        if (not store or not store.get('admin_user')) and username == 'admin' and password == 'vaptvupt123':
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
 
-        print(f"Tentativa de login falhou: {username}")
         return render_template('login.html', error="Usuário ou Senha incorretos")
 
     return render_template('login.html')
@@ -220,103 +164,100 @@ def admin_logout():
     session.pop('is_admin', None)
     return redirect(url_for('index'))
 
+# --- PAINEL ADMINISTRATIVO (VENDEDOR) ---
+
 @app.route('/vendedor')
 def admin_dashboard():
     if not check_auth(): return redirect(url_for('admin_login'))
-    store = get_store()
 
-    # Buscar pedidos
-    orders_res = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute()
-    orders = orders_res.data
+    store = None
+    orders = []
+    products = []
 
-    # Buscar produtos
-    products_res = supabase.table('products').select("*").eq('store_id', store['id']).order('created_at', desc=True).execute()
-    products = products_res.data
+    try:
+        store = get_store()
+        if store and 'id' in store:
+            try:
+                orders_res = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute()
+                orders = orders_res.data if orders_res.data else []
+            except: pass
+
+            try:
+                products_res = supabase.table('products').select("*").eq('store_id', store['id']).execute()
+                products = products_res.data if products_res.data else []
+            except: pass
+    except: pass
 
     return render_template('admin.html', store=store, orders=orders, products=products)
+
+@app.route('/vendedor/configuracoes', methods=['POST'])
+def update_settings():
+    if not check_auth(): return redirect(url_for('admin_login'))
+
+    store_data = {
+        "name": request.form.get('name'),
+        "whatsapp": request.form.get('whatsapp'),
+        "primary_color": request.form.get('primary_color'),
+        "secondary_color": request.form.get('secondary_color'),
+        "logo_url": request.form.get('logo_url'),
+        "pix_key": request.form.get('pix_key'),
+        "pix_name": request.form.get('pix_name'),
+        "pix_city": request.form.get('pix_city'),
+        "admin_user": request.form.get('admin_user', 'admin'),
+        "admin_password": request.form.get('admin_password', 'vaptvupt123'),
+        "address_street": request.form.get('address_street'),
+        "address_number": request.form.get('address_number'),
+        "address_city": request.form.get('address_city'),
+        "address_state": request.form.get('address_state')
+    }
+
+    file = request.files.get('file')
+    if file and file.filename:
+        try:
+            file_ext = file.filename.split('.')[-1]
+            filename = f"logo_{uuid.uuid4()}.{file_ext}"
+            supabase.storage.from_('product-images').upload(filename, file.read())
+            store_data["logo_url"] = supabase.storage.from_('product-images').get_public_url(filename)
+        except: pass
+
+    try:
+        supabase.table('stores').upsert(dict(store_data, slug="default")).execute()
+    except Exception as e:
+        print(f"Erro ao salvar config: {e}")
+
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/vendedor/produto/novo', methods=['POST'])
 def admin_add_product():
     if not check_auth(): return redirect(url_for('admin_login'))
     store = get_store()
-
-    # Lógica de Upload de Imagem
-    image_url = request.form.get('image_url')
-    file = request.files.get('file')
-
-    if file and file.filename != '':
-        # Gerar nome único para o arquivo
-        ext = file.filename.split('.')[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        bucket_name = "product-images"
-
-        # Upload para Supabase Storage
-        file_data = file.read()
-        supabase.storage.from_(bucket_name).upload(filename, file_data, {"content-type": file.content_type})
-
-        # Obter URL Pública
-        image_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+    if not store: return redirect(url_for('admin_dashboard'))
 
     product_data = {
-        "store_id": store_id,
+        "store_id": store['id'],
         "name": request.form.get('name'),
         "description": request.form.get('description'),
         "price": float(request.form.get('price')),
-        "weight_kg": float(request.form.get('weight', 0.5)),
-        "image_url": image_url,
-        "is_active": True
+        "image_url": request.form.get('image_url')
     }
+
+    file = request.files.get('file')
+    if file and file.filename != '':
+        try:
+            ext = file.filename.split('.')[-1]
+            filename = f"{uuid.uuid4()}.{ext}"
+            supabase.storage.from_('product-images').upload(filename, file.read())
+            product_data["image_url"] = supabase.storage.from_('product-images').get_public_url(filename)
+        except: pass
 
     supabase.table('products').insert(product_data).execute()
-    return redirect(url_for('admin_dashboard', slug=slug))
-
-@app.route('/vendedor/produto/deletar/<product_id>')
-def admin_delete_product(product_id):
-    if not check_auth(): return redirect(url_for('admin_login'))
-    supabase.table('products').delete().eq('id', product_id).execute()
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/vendedor/pedido/status', methods=['POST'])
-def admin_update_order_status():
+@app.route('/vendedor/pedido/<order_id>/status', methods=['POST'])
+def update_order_status(order_id):
     if not check_auth(): return redirect(url_for('admin_login'))
-    order_id = request.form.get('order_id')
     new_status = request.form.get('status')
     supabase.table('orders').update({"status": new_status}).eq('id', order_id).execute()
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/vendedor/configuracoes', methods=['POST'])
-def admin_update_settings():
-    if not check_auth(): return redirect(url_for('admin_login'))
-    store = get_store()
-    # Lógica de Upload de Logo
-    logo_url = request.form.get('logo_url')
-    file = request.files.get('file')
-
-    if file and file.filename != '':
-        ext = file.filename.split('.')[-1]
-        filename = f"logo_{uuid.uuid4()}.{ext}"
-        bucket_name = "product-images"
-        file_data = file.read()
-        supabase.storage.from_(bucket_name).upload(filename, file_data, {"content-type": file.content_type})
-        logo_url = supabase.storage.from_(bucket_name).get_public_url(filename)
-
-    store_data = {
-        "name": request.form.get('name'),
-        "whatsapp": request.form.get('whatsapp'),
-        "logo_url": logo_url,
-        "primary_color": request.form.get('primary_color'),
-        "secondary_color": request.form.get('secondary_color'),
-        "address_street": request.form.get('address_street'),
-        "address_number": request.form.get('address_number'),
-        "address_city": request.form.get('address_city'),
-        "address_state": request.form.get('address_state'),
-        "admin_user": request.form.get('admin_user'),
-        "admin_password": request.form.get('admin_password'),
-        "pix_key": request.form.get('pix_key'),
-        "pix_name": request.form.get('pix_name'),
-        "pix_city": request.form.get('pix_city')
-    }
-    supabase.table('stores').update(store_data).eq('id', store['id']).execute()
     return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
