@@ -23,7 +23,7 @@
             :root {
                 --primary-color: {
                         {
-                        store.primary_color if (store and store.primary_color) else '#3B82F6'
+                        store.primary_color if (store and store.primary_color and store.primary_color !='') else '#10B981'
                     }
                 }
 
@@ -31,7 +31,7 @@
 
                 --secondary-color: {
                         {
-                        store.secondary_color if (store and store.secondary_color) else '#10B981'
+                        store.secondary_color if (store and store.secondary_color and store.secondary_color !='') else '#059669'
                     }
                 }
 
@@ -39,7 +39,7 @@
             }
 
             .btn-primary {
-                background-color: var(--primary-color);
+                background-color: var(--primary-color) !important;
                 transition: all 0.2s ease;
             }
 
@@ -49,7 +49,7 @@
             }
 
             .text-primary {
-                color: var(--primary-color);
+                color: var(--primary-color) !important;
             }
 
             .glass {
@@ -70,12 +70,12 @@
     </head>
 
     <body class="bg-slate-50 text-slate-900 min-h-screen">
-        <header class="glass fixed top-0 w-full z-50 shadow-sm">
+        <header class="glass fixed top-0 w-full z-50 shadow-sm border-b border-slate-100">
             <div class="container mx-auto px-4 h-20 flex items-center justify-between">
                 <!-- LOGO PREMIUM -->
                 <a href="/" class="flex items-center gap-3 active:scale-95 transition-all">
-                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200/50"
-                        style="background-color: var(--primary-color);">
+                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200"
+                        style="background-color: var(--primary-color) !important;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" viewBox="0 0 24 24"
                             fill="currentColor">
                             <path d="M11 20 L15 11 L12 11 L15 4 L8 12 L11 12 Z" />
