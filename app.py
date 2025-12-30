@@ -20,7 +20,6 @@ supabase: Client = create_client(url, key)
 # --- AUTO SETUP DO BANCO ---
 def init_db():
     try:
-        # Verifica se já existe a loja principal
         res = supabase.table('stores').select("id").eq('slug', 'default').execute()
         if not res.data:
             supabase.table('stores').upsert({
@@ -39,7 +38,6 @@ def get_store():
     try:
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
         if res.data: return res.data[0]
-        # Se não houver loja, cria uma básica para não quebrar a vitrine
         init_db()
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
         return res.data[0] if res.data else None
@@ -67,19 +65,18 @@ def generate_wa_link(phone, base_msg, cart_items=None, total=None):
 @app.route('/')
 def index():
     store = get_store()
-    if not store: return "Erro ao carregar loja. Verifique o Supabase.", 500
-
     query = request.args.get('q', '').strip()
     products = []
-    try:
-        req = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True)
-        if query:
-            # Busca simples no nome (Supabase ilike)
-            req = req.ilike('name', f'%{query}%')
 
-        products_res = req.execute()
-        products = products_res.data if products_res.data else []
-    except: pass
+    try:
+        if store:
+            req = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True)
+            if query:
+                req = req.ilike('name', f'%{query}%')
+            products_res = req.execute()
+            products = products_res.data if products_res.data else []
+    except Exception as e:
+        print(f"Erro ao carregar vitrine: {e}")
 
     return render_template('store.html', store=store, products=products, query=query)
 
@@ -88,13 +85,11 @@ def add_to_cart():
     product_id = request.form.get('product_id')
     qty_requested = int(request.form.get('quantity', 1))
 
-    # Validar Estoque
     try:
         p_res = supabase.table('products').select("name, stock_quantity").eq('id', product_id).execute()
         if p_res.data:
             product = p_res.data[0]
             stock = product.get('stock_quantity', 0)
-
             if stock < qty_requested:
                 return jsonify({"status": "error", "message": f"Estoque insuficiente ({stock} disponíveis)"})
     except: pass
@@ -110,7 +105,7 @@ def add_to_cart():
 def checkout():
     store = get_store()
     if request.method == 'POST':
-        # Concatenar endereço completo para o banco e WhatsApp
+        # Concatenar endereço completo
         street = request.form.get('street')
         number = request.form.get('number')
         complement = request.form.get('complement')
@@ -167,9 +162,7 @@ def checkout():
             item['order_id'] = order_id
             supabase.table('order_items').insert(item).execute()
 
-        # Gerar Link de WhatsApp Inteligente
         wa_link = generate_wa_link(store['whatsapp'], store.get('whatsapp_message', 'Novo pedido!'), cart_for_wa, total)
-
         session.pop('cart', None)
         return redirect(url_for('order_confirmation', order_id=order_id, wa_link=wa_link))
 
@@ -250,7 +243,6 @@ def update_settings():
         "admin_password": request.form.get('admin_password', 'vaptvupt123')
     }
 
-    # Upload Logo
     file = request.files.get('file')
     if file and file.filename:
         try:
@@ -285,6 +277,13 @@ def admin_add_product():
         except: pass
 
     supabase.table('products').insert(product_data).execute()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/vendedor/pedido/<order_id>/status', methods=['POST'])
+def update_order_status(order_id):
+    if not check_auth(): return redirect(url_for('admin_login'))
+    new_status = request.form.get('status')
+    supabase.table('orders').update({"status": new_status}).eq('id', order_id).execute()
     return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
