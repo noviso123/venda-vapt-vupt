@@ -16,9 +16,32 @@ url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
+# --- AUTO SETUP DO BANCO ---
+def init_db():
+    try:
+        # Verifica se já existe a loja principal
+        res = supabase.table('stores').select("id").eq('slug', 'default').execute()
+        if not res.data:
+            print("Executando setup inicial do banco de dados...")
+            with open('setup_db.sql', 'r', encoding='utf-8') as f:
+                sql = f.read()
+            # Como não podemos rodar SQL arbitrário via SDK Rest,
+            # assumimos que tabelas existem ou usamos RPC se configurado.
+            # Por agora, garantimos que seeds rodam se tabelas existirem.
+            supabase.table('stores').upsert({"slug": "default", "name": "Venda Vapt Vupt", "whatsapp": "5511999999999"}).execute()
+    except Exception as e:
+        print(f"Nota: Certifique-se de rodar o SQL no painel do Supabase uma vez. Erro: {e}")
+
+# init_db() # Chamado no boot se necessário
+
+def get_store():
+    # Em Single-Tenant, sempre pegamos a única loja ativada
+    res = supabase.table('stores').select("*").eq('slug', 'default').execute()
+    return res.data[0] if res.data else None
+
 # --- HELPERS ---
-def check_auth(slug):
-    if 'admin_store_slug' not in session or session['admin_store_slug'] != slug:
+def check_auth():
+    if 'is_admin' not in session:
         return False
     return True
 
@@ -26,19 +49,8 @@ def check_auth(slug):
 
 @app.route('/')
 def index():
-    # Listar todas as lojas (para o admin ou landing page)
-    response = supabase.table('stores').select("*").execute()
-    stores = response.data
-    return render_template('index.html', stores=stores)
-
-@app.route('/loja/<slug>')
-def store_view(slug):
-    # Buscar detalhes da loja
-    store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
-    if not store_res.data:
-        return "Loja não encontrada", 404
-
-    store = store_res.data[0]
+    store = get_store()
+    if not store: return "Sistema em configuração. Aguarde...", 503
 
     # Buscar produtos da loja
     products_res = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True).execute()
@@ -60,14 +72,12 @@ def add_to_cart():
 
     return jsonify({"success": True, "cart_count": sum(cart.values())})
 
-@app.route('/checkout/<store_slug>')
-def checkout(store_slug):
-    store_res = supabase.table('stores').select("*").eq('slug', store_slug).execute()
-    store = store_res.data[0]
-
+@app.route('/checkout')
+def checkout():
+    store = get_store()
     cart = session.get('cart', {})
     if not cart:
-        return redirect(url_for('store_view', slug=store_slug))
+        return redirect(url_for('index'))
 
     # Buscar detalhes dos itens no carrinho
     product_ids = list(cart.keys())
@@ -174,33 +184,28 @@ def order_confirmation(order_id):
 
 # --- MARKETING E ADMIN ---
 
-@app.route('/<slug>/login', methods=['GET', 'POST'])
-def admin_login(slug):
+@app.route('/login', methods=['GET', 'POST'])
+def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
-        if store_res.data:
-            store = store_res.data[0]
-            if store.get('admin_user') == username and store.get('admin_password') == password:
-                session['admin_store_slug'] = slug
-                return redirect(url_for('admin_dashboard', slug=slug))
-        return render_template('login.html', slug=slug, error="Usuário ou Senha incorretos")
+        store = get_store()
+        if store and store.get('admin_user') == username and store.get('admin_password') == password:
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        return render_template('login.html', error="Usuário ou Senha incorretos")
 
-    return render_template('login.html', slug=slug)
+    return render_template('login.html')
 
-@app.route('/<slug>/logout')
-def admin_logout(slug):
-    session.pop('admin_store_slug', None)
-    return redirect(url_for('store_view', slug=slug))
+@app.route('/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    return redirect(url_for('index'))
 
-@app.route('/<slug>/vendedor')
-def admin_dashboard(slug):
-    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
-    # Buscar detalhes da loja
-    store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
-    if not store_res.data: return "Acesso negado", 403
-    store = store_res.data[0]
+@app.route('/vendedor')
+def admin_dashboard():
+    if not check_auth(): return redirect(url_for('admin_login'))
+    store = get_store()
 
     # Buscar pedidos
     orders_res = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute()
@@ -212,11 +217,10 @@ def admin_dashboard(slug):
 
     return render_template('admin.html', store=store, orders=orders, products=products)
 
-@app.route('/<slug>/vendedor/produto/novo', methods=['POST'])
-def admin_add_product(slug):
-    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
-    store_res = supabase.table('stores').select("id").eq('slug', slug).execute()
-    store_id = store_res.data[0]['id']
+@app.route('/vendedor/produto/novo', methods=['POST'])
+def admin_add_product():
+    if not check_auth(): return redirect(url_for('admin_login'))
+    store = get_store()
 
     # Lógica de Upload de Imagem
     image_url = request.form.get('image_url')
@@ -248,23 +252,24 @@ def admin_add_product(slug):
     supabase.table('products').insert(product_data).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
 
-@app.route('/<slug>/vendedor/produto/deletar/<product_id>')
-def admin_delete_product(slug, product_id):
-    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
+@app.route('/vendedor/produto/deletar/<product_id>')
+def admin_delete_product(product_id):
+    if not check_auth(): return redirect(url_for('admin_login'))
     supabase.table('products').delete().eq('id', product_id).execute()
-    return redirect(url_for('admin_dashboard', slug=slug))
+    return redirect(url_for('admin_dashboard'))
 
-@app.route('/<slug>/vendedor/pedido/status', methods=['POST'])
-def admin_update_order_status(slug):
-    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
+@app.route('/vendedor/pedido/status', methods=['POST'])
+def admin_update_order_status():
+    if not check_auth(): return redirect(url_for('admin_login'))
     order_id = request.form.get('order_id')
     new_status = request.form.get('status')
     supabase.table('orders').update({"status": new_status}).eq('id', order_id).execute()
-    return redirect(url_for('admin_dashboard', slug=slug))
+    return redirect(url_for('admin_dashboard'))
 
-@app.route('/<slug>/vendedor/configuracoes', methods=['POST'])
-def admin_update_settings(slug):
-    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
+@app.route('/vendedor/configuracoes', methods=['POST'])
+def admin_update_settings():
+    if not check_auth(): return redirect(url_for('admin_login'))
+    store = get_store()
     # Lógica de Upload de Logo
     logo_url = request.form.get('logo_url')
     file = request.files.get('file')
@@ -293,8 +298,8 @@ def admin_update_settings(slug):
         "pix_name": request.form.get('pix_name'),
         "pix_city": request.form.get('pix_city')
     }
-    supabase.table('stores').update(store_data).eq('slug', slug).execute()
-    return redirect(url_for('admin_dashboard', slug=slug))
+    supabase.table('stores').update(store_data).eq('id', store['id']).execute()
+    return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)
