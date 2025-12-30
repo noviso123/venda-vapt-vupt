@@ -262,26 +262,30 @@ def admin_login():
         store = get_store()
 
         # 1. Login Admin (Prioridade para admin/admin como solicitado)
-        is_god_mode = (login_id == 'admin' and password == 'admin')
-        is_store_admin = store and store.get('admin_user') == login_id and store.get('admin_password') == password
-
-        if is_god_mode or is_store_admin:
-            session['is_admin'] = True
-            return redirect(url_for('admin_dashboard'))
-
-        # 2. Login Cliente
         try:
+            # 1. Login Admin
+            is_god_mode = (login_id == 'admin' and password == 'admin')
+            is_store_admin = store and store.get('admin_user') == login_id and store.get('admin_password') == password
+
+            if is_god_mode or is_store_admin:
+                session['is_admin'] = True
+                return redirect(url_for('admin_dashboard'))
+
+            # 2. Login Cliente
             c_res = supabase.table('customers').select("*").eq('email', login_id).eq('password', password).execute()
             if not c_res.data:
                 c_res = supabase.table('customers').select("*").eq('whatsapp', login_id).eq('password', password).execute()
+
             if c_res.data:
                 session['customer_id'] = c_res.data[0]['id']
                 session['customer_name'] = c_res.data[0]['name']
                 if session.get('cart'): return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
-        except: pass
 
-        return render_template('login.html', error="Login ou senha incorretos")
+            return render_template('login.html', error="Login ou senha incorretos")
+        except Exception as e:
+            app.logger.error(f"Erro Login: {e}")
+            return render_template('login.html', error=f"Erro interno no login: {str(e)}")
     return render_template('login.html')
 
 @app.route('/meus-pedidos')
