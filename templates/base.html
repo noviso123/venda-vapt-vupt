@@ -23,47 +23,31 @@
                 -webkit-font-smoothing: antialiased;
             }
 
-            :root {
-                --primary-color: {
-                        {
-                        store.get('primary_color', '#0EA5E9') if store else '#0EA5E9'
-                    }
-                }
-
-                ;
-
-                --secondary-color: {
-                        {
-                        store.get('secondary_color', '#0284C7') if store else '#0284C7'
-                    }
-                }
-
-                ;
-            }
-
+            /* CORES FIXAS - Azul Sky */
             .bg-primary {
-                background-color: var(--primary-color) !important;
+                background-color: #0EA5E9 !important;
             }
 
             .bg-secondary {
-                background-color: var(--secondary-color) !important;
+                background-color: #0284C7 !important;
             }
 
             .text-primary {
-                color: var(--primary-color) !important;
+                color: #0EA5E9 !important;
             }
 
             .border-primary {
-                border-color: var(--primary-color) !important;
+                border-color: #0EA5E9 !important;
             }
 
             .btn-primary {
-                background-color: var(--primary-color) !important;
+                background-color: #0EA5E9 !important;
+                color: white !important;
                 transition: all 0.2s ease;
             }
 
             .btn-primary:hover {
-                filter: brightness(90%);
+                background-color: #0284C7 !important;
                 transform: translateY(-2px);
             }
 
