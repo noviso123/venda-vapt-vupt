@@ -1,18 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="glass p-6 rounded-3xl border-l-4 border-primary">
+        <h4 class="text-xs font-black text-slate-400 uppercase mb-2">Faturamento</h4>
+        <p class="text-3xl font-black text-slate-800">R$ {{ "%.2f"|format(stats.total_revenue) }}</p>
+    </div>
+    <div class="glass p-6 rounded-3xl border-l-4 border-emerald-500">
+        <h4 class="text-xs font-black text-slate-400 uppercase mb-2">Tot. Pedidos</h4>
+        <p class="text-3xl font-black text-slate-800">{{ stats.order_count }}</p>
+    </div>
+    <div class="glass p-6 rounded-3xl border-l-4 border-amber-500">
+        <h4 class="text-xs font-black text-slate-400 uppercase mb-2">Produtos</h4>
+        <p class="text-3xl font-black text-slate-800">{{ stats.product_count }}</p>
+    </div>
+</div>
+
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
     <div class="flex items-center gap-4">
         <h1 class="text-4xl font-black text-slate-800">Painel de Controle</h1>
     </div>
-    <a href="/vendedor/clientes"
-        class="px-6 py-3 bg-sky-500/10 text-primary rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-sky-500/20 transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-                d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a7 7 0 00-7 7v1h11v-1a7 7 0 00-7-7z" />
-        </svg>
-        GERIR CLIENTES
-    </a>
+    <div class="flex gap-4">
+        <a href="/vendedor/clientes"
+            class="px-6 py-3 bg-sky-500/10 text-primary rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-sky-500/20 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                    d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a7 7 0 00-7 7v1h11v-1a7 7 0 00-7-7z" />
+            </svg>
+            CLIENTES
+        </a>
+    </div>
 </div>
 <p class="text-slate-500">Gestão da loja: <span
         class="font-bold text-primary">{{ store.name if store else 'Configuração Pendente' }}</span></p>

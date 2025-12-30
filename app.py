@@ -158,7 +158,8 @@ def index():
     query = request.args.get('q', '').strip()
     products = []
     try:
-        req = supabase.table('products').select("*, product_images(*)").eq('store_id', store['id'])
+        # VITRINE GLOBAL: Pega produtos de TODAS as lojas para máxima exposição
+        req = supabase.table('products').select("*, product_images(*), stores(*)").eq('is_active', True)
         if query: req = req.ilike('name', f'%{query}%')
         products = req.order('created_at', desc=True).execute().data or []
     except Exception as e: app.logger.error(f"Erro Vitrine: {e}")
@@ -418,23 +419,42 @@ def admin_logout():
 def admin_dashboard():
     if not check_auth(): return redirect(url_for('admin_login'))
 
-    # Dashboard para Superadmin (Ver todas as lojas)
+    # Dashboard para Superadmin (BI Global)
     if is_superadmin():
         try:
             stores = supabase.table('stores').select("*").execute().data
-            return render_template('super_admin.html', stores=stores)
+            orders_all = supabase.table('orders').select("total, status").execute().data
+
+            # BI Superadmin
+            total_sales = sum(o['total'] for o in orders_all if o['status'] != 'cancelled')
+            total_orders = len(orders_all)
+            avg_ticket = total_sales / total_orders if total_orders > 0 else 0
+
+            return render_template('super_admin.html',
+                                 stores=stores,
+                                 total_sales=total_sales,
+                                 total_orders=total_orders,
+                                 avg_ticket=avg_ticket)
         except Exception as e:
             app.logger.error(f"Erro Carregar Super Panel: {e}")
 
-    # Dashboard para Vendedor (Sua própria loja)
+    # Dashboard para Vendedor (Sua própria loja + BI Local)
     store = get_store()
     orders, products = [], []
+    stats = {"total_revenue": 0, "order_count": 0, "product_count": 0}
+
     if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
         try:
             orders = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute().data
             products = supabase.table('products').select("*, product_images(*)").eq('store_id', store['id']).order('created_at', desc=True).execute().data
+
+            # BI Local
+            stats["total_revenue"] = sum(o['total'] for o in orders if o['status'] != 'cancelled')
+            stats["order_count"] = len(orders)
+            stats["product_count"] = len(products)
         except: pass
-    return render_template('admin.html', store=store, orders=orders, products=products)
+
+    return render_template('admin.html', store=store, orders=orders, products=products, stats=stats)
 
 @app.route('/vendedor/configuracoes', methods=['POST'])
 def update_settings():

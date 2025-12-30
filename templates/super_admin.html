@@ -14,17 +14,17 @@
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div class="card">
-            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Total de Lojas</h3>
-            <p class="text-3xl font-black text-slate-800">{{ stores|length }}</p>
+        <div class="card bg-gradient-to-br from-white to-purple-50">
+            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Vendas Totais</h3>
+            <p class="text-3xl font-black text-purple-600">R$ {{ "%.2f"|format(total_sales) }}</p>
         </div>
-        <div class="card">
+        <div class="card bg-gradient-to-br from-white to-blue-50">
+            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Ticket Médio</h3>
+            <p class="text-3xl font-black text-blue-600">R$ {{ "%.2f"|format(avg_ticket) }}</p>
+        </div>
+        <div class="card bg-gradient-to-br from-white to-emerald-50">
             <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Pedidos Globais</h3>
-            <p class="text-3xl font-black text-slate-800">Buscando...</p>
-        </div>
-        <div class="card">
-            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Faturamento Total</h3>
-            <p class="text-3xl font-black text-slate-800">R$ ---</p>
+            <p class="text-3xl font-black text-emerald-600">{{ total_orders }}</p>
         </div>
     </div>
 
