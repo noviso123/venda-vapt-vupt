@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h2 class="text-3xl font-black text-slate-800">Gestão de Clientes</h2>
+            <p class="text-slate-500">Visualize e gerencie as contas dos seus compradores.</p>
+        </div>
+        <a href="/vendedor"
+            class="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">
+            Voltar ao Dashboard
+        </a>
+    </div>
+
+    <div class="glass rounded-3xl overflow-hidden shadow-xl border border-slate-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 border-b border-slate-100">
+                        <th class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Cliente</th>
+                        <th class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Contato</th>
+                        <th class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Endereço
+                            Principal</th>
+                        <th class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">
+                            Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    {% for customer in customers %}
+                    <tr class="hover:bg-slate-50/30 transition-all">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-800">{{ customer.name }}</div>
+                            <div class="text-xs text-slate-400">{{ customer.email }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="https://wa.me/{{ customer.whatsapp }}" target="_blank"
+                                class="text-emerald-600 font-bold hover:underline flex items-center gap-1">
+                                {{ customer.whatsapp }}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path
+                                        d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                    <path
+                                        d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                                </svg>
+                            </a>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-xs text-slate-500 max-w-[200px] truncate"
+                                title="{{ customer.address_full }}">
+                                {{ customer.address_full }}
+                            </p>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <button onclick="openResetModal('{{ customer.id }}', '{{ customer.name }}')"
+                                class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all"
+                                title="Alterar Senha">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-slate-400 font-bold">Nenhum cliente
+                            cadastrado ainda.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reset Senha -->
+<div id="resetModal"
+    class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+        <div class="p-8">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Alterar Senha</h3>
+            <p id="resetSub" class="text-slate-500 text-sm mb-6">Defina uma nova senha para o cliente.</p>
+
+            <form action="/vendedor/cliente/reset-senha" method="POST" class="space-y-4">
+                <input type="hidden" name="customer_id" id="resetCustomerId">
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-400 mb-2">Nova Senha</label>
+                    <input type="text" name="new_password" required placeholder="Digite a nova senha"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 outline-none focus:border-primary transition-all">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeResetModal()"
+                        class="flex-1 py-3 font-bold text-slate-400 hover:text-slate-600 transition-all">Cancelar</button>
+                    <button type="submit"
+                        class="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:scale-105 active:scale-95 transition-all">Salvar
+                        Senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openResetModal ( id, name )
+    {
+        document.getElementById( 'resetCustomerId' ).value = id;
+        document.getElementById( 'resetSub' ).innerText = `Definindo nova senha para: ${ name }`;
+        document.getElementById( 'resetModal' ).classList.remove( 'hidden' );
+    }
+    function closeResetModal ()
+    {
+        document.getElementById( 'resetModal' ).classList.add( 'hidden' );
+    }
+</script>
+{% endblock %}

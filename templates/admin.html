@@ -1,29 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex items-center gap-4">
-    <h1 class="text-4xl font-black text-slate-800">Painel Administrativo</h1>
-    <a href="/logout"
-        class="text-xs font-bold text-red-400 hover:text-red-600 transition-all uppercase tracking-widest">Sair</a>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+    <div class="flex items-center gap-4">
+        <h1 class="text-4xl font-black text-slate-800">Painel de Controle</h1>
+        <a href="/logout"
+            class="text-xs font-bold text-red-400 hover:text-red-600 transition-all uppercase tracking-widest">Sair</a>
+    </div>
+    <a href="/vendedor/clientes"
+        class="px-6 py-3 bg-primary/10 text-primary rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-primary/20 transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path
+                d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a7 7 0 00-7 7v1h11v-1a7 7 0 00-7-7z" />
+        </svg>
+        GERIR CLIENTES
+    </a>
 </div>
 <p class="text-slate-500">Gestão da loja: <span
         class="font-bold text-primary">{{ store.name if store else 'Configuração Pendente' }}</span></p>
 
 <!-- ABAS -->
-<div class="flex gap-8 border-b border-slate-200 mb-8 mt-8">
+<div class="flex gap-8 border-b border-slate-200 mb-8 mt-8 overflow-x-auto whitespace-nowrap">
     <button onclick="switchTab('orders')" id="tab-orders"
         class="pb-4 px-2 font-bold text-primary border-b-2 border-primary transition-all">Pedidos</button>
     <button onclick="switchTab('products')" id="tab-products"
-        class="pb-4 px-2 font-bold text-slate-400 border-b-2 border-transparent transition-all">Produtos
-        (Estoque)</button>
+        class="pb-4 px-2 font-bold text-slate-400 border-b-2 border-transparent transition-all">Produtos &
+        Estoque</button>
     <button onclick="switchTab('settings')" id="tab-settings"
-        class="pb-4 px-2 font-bold text-slate-400 border-b-2 border-transparent transition-all">Configurações</button>
+        class="pb-4 px-2 font-bold text-slate-400 border-b-2 border-transparent transition-all">Configurações
+        Pix/Branding</button>
 </div>
 
 <!-- SEÇÃO DE PEDIDOS -->
 <div id="section-orders" class="space-y-4">
     {% for order in orders %}
-    <div class="glass p-6 rounded-3xl flex items-center justify-between">
+    <div class="glass p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 mb-1">
                 <span class="text-xs font-black uppercase text-slate-400">#{{ order.id[:8] }}</span>
@@ -33,7 +44,7 @@
             <h3 class="font-bold text-slate-800">{{ order.customers.name }}</h3>
             <p class="text-xs text-slate-500">{{ order.delivery_address }}</p>
         </div>
-        <div class="text-right">
+        <div class="text-right flex flex-col items-end">
             <p class="text-xl font-black text-primary mb-2">R$ {{ "%.2f"|format(order.total) }}</p>
             <form action="/vendedor/pedido/{{ order.id }}/status" method="POST" class="flex gap-2">
                 <select name="status" class="text-xs border border-slate-200 rounded-lg px-2 py-1 outline-none">
@@ -54,67 +65,108 @@
 </div>
 
 <!-- SEÇÃO DE PRODUTOS -->
-<div id="section-products" class="hidden space-y-6">
-    <div class="glass p-8 rounded-3xl">
-        <h3 class="text-xl font-bold mb-6">Cadastrar Novo Produto</h3>
-        <form action="/vendedor/produto/novo" method="POST" enctype="multipart/form-data"
+<div id="section-products" class="hidden space-y-8">
+    <div class="glass p-8 rounded-3xl border border-primary/10">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h3 class="text-xl font-bold">Adicionar Novo Produto</h3>
+            <div class="flex flex-1 max-w-md gap-2">
+                <input type="text" id="import_url" placeholder="Importar via Link (Ex: Outro site)"
+                    class="flex-1 px-4 py-2 text-sm rounded-xl border border-slate-200 outline-none focus:border-primary">
+                <button onclick="importProduct()"
+                    class="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-all">IMPORTAR</button>
+            </div>
+        </div>
+
+        <form id="productForm" action="/vendedor/produto/novo" method="POST" enctype="multipart/form-data"
             class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-bold mb-2">Nome do Produto</label>
-                    <input type="text" name="name" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                    <input type="text" name="name" id="p_name" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200">
                 </div>
                 <div>
                     <label class="block text-sm font-bold mb-2">Descrição</label>
-                    <textarea name="description"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 h-24"></textarea>
+                    <textarea name="description" id="p_desc"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 h-32"></textarea>
                 </div>
             </div>
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold mb-2">Preço (R$)</label>
-                        <input type="number" step="0.01" name="price" required
+                        <input type="number" step="0.01" name="price" id="p_price" required
                             class="w-full px-4 py-3 rounded-xl border border-slate-200">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-2 text-blue-600">Estoque Inicial</label>
+                        <label class="block text-sm font-bold mb-2 text-blue-600">Estoque</label>
                         <input type="number" name="stock_quantity" value="99" required
                             class="w-full px-4 py-3 rounded-xl border border-blue-200">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold mb-2">Foto do Produto</label>
-                    <input type="file" name="file" accept="image/*"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white">
+                    <label class="block text-sm font-bold mb-2 text-emerald-600">Link de Venda Externo
+                        (Opcional)</label>
+                    <input type="text" name="external_url" id="p_ext" placeholder="https://..."
+                        class="w-full px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50/10 placeholder:text-emerald-300">
+                    <p class="text-[10px] text-slate-400 mt-1">Se preenchido, o botão no site direcionará o cliente para
+                        este link.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2">Foto / Imagem</label>
+                    <div class="flex gap-2">
+                        <input type="file" name="file" accept="image/*"
+                            class="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-xs">
+                        <input type="hidden" name="image_url" id="p_img">
+                    </div>
                 </div>
                 <button type="submit"
-                    class="w-full py-4 btn-primary text-white rounded-2xl font-bold shadow-lg shadow-blue-200 mt-2">Adicionar
-                    Produto</button>
+                    class="w-full py-5 btn-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 transition-all hover:scale-[1.02]">
+                    PUBLICAR PRODUTO NO VAPT VUPT
+                </button>
             </div>
         </form>
     </div>
 
     <!-- LISTA DE PRODUTOS E ESTOQUE -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for product in products %}
-        <div class="glass p-4 rounded-2xl flex items-center gap-4">
-            <div class="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0">
-                {% if product.image_url %}
-                <img src="{{ product.image_url }}" class="w-full h-full object-cover">
-                {% endif %}
+        <div class="glass p-5 rounded-3xl flex flex-col gap-4 relative group hover:border-primary/30 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-20 h-20 rounded-2xl bg-slate-100 overflow-hidden shrink-0 shadow-sm">
+                    {% if product.image_url %}
+                    <img src="{{ product.image_url }}" class="w-full h-full object-cover">
+                    {% endif %}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-bold text-slate-800 truncate">{{ product.name }}</h4>
+                    <p class="text-sm font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</p>
+                    {% if product.external_url %}
+                    <span
+                        class="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">LINK
+                        EXTERNO</span>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Qtd</span>
+                    <span
+                        class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-emerald-500{% endif %} font-black text-2xl">
+                        {{ product.stock_quantity }}
+                    </span>
+                </div>
             </div>
-            <div class="flex-1">
-                <h4 class="font-bold text-slate-800">{{ product.name }}</h4>
-                <p class="text-xs text-slate-500">R$ {{ "%.2f"|format(product.price) }}</p>
-            </div>
-            <div class="text-right">
-                <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Stock</span>
-                <span
-                    class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-emerald-500{% endif %} font-black text-xl">
-                    {{ product.stock_quantity }}
-                </span>
-            </div>
+
+            <form action="/vendedor/produto/{{ product.id }}/delete" method="POST"
+                onsubmit="return confirm('Excluir este produto permanentemente?')"
+                class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button type="submit" class="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </form>
         </div>
         {% endfor %}
     </div>
@@ -122,61 +174,95 @@
 
 <!-- SEÇÃO DE CONFIGURAÇÕES -->
 <div id="section-settings" class="hidden">
-    <div class="glass p-8 rounded-3xl max-w-2xl mx-auto">
-        <h3 class="text-xl font-bold mb-6">Configurações da Loja</h3>
-        <form action="/vendedor/configuracoes" method="POST" enctype="multipart/form-data" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-bold mb-2">Nome da Loja</label>
-                    <input type="text" name="name" value="{{ store.name if store else '' }}"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200">
+    <div class="glass p-8 rounded-3xl max-w-4xl mx-auto border border-primary/10">
+        <h3 class="text-2xl font-black text-slate-800 mb-8 border-b border-slate-100 pb-4">Configuração Geral da Loja
+        </h3>
+
+        <form action="/vendedor/configuracoes" method="POST" enctype="multipart/form-data" class="space-y-10">
+            <!-- Branding -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">Identidade Visual</h4>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Nome da Loja Exibido</label>
+                        <input type="text" name="name" value="{{ store.name if store else '' }}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">WhatsApp de Vendas (Ex: 5511...)</label>
+                        <input type="text" name="whatsapp" value="{{ store.whatsapp if store else '' }}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold mb-2">Cor Primária</label>
+                            <input type="color" name="primary_color"
+                                value="{{ store.primary_color if store else '#10B981' }}"
+                                class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold mb-2">Cor Secundária</label>
+                            <input type="color" name="secondary_color"
+                                value="{{ store.secondary_color if store else '#059669' }}"
+                                class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold mb-2">WhatsApp (Com DDD)</label>
-                    <input type="text" name="whatsapp" value="{{ store.whatsapp if store else '' }}"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200">
+
+                <div class="space-y-6 bg-emerald-50/20 p-6 rounded-3xl border border-emerald-100">
+                    <h4 class="text-sm font-black text-emerald-600 uppercase tracking-widest">Configurações Financeiras
+                        (PIX)</h4>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Sua Chave PIX (E-mail, CPF, Tel ou
+                            Aleatória)</label>
+                        <input type="text" name="pix_key" value="{{ store.pix_key if store else '' }}" required
+                            placeholder="chave@pix.com"
+                            class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-2">Nome do Titular</label>
+                            <input type="text" name="pix_name" value="{{ store.pix_name if store else '' }}" required
+                                placeholder="Ex: João da Silva"
+                                class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2">Cidade Base</label>
+                            <input type="text" name="pix_city" value="{{ store.pix_city if store else '' }}" required
+                                placeholder="Ex: São Paulo"
+                                class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-emerald-600 font-bold italic">Estes dados são usados para gerar o QR Code
+                        de pagamento automático para o cliente.</p>
                 </div>
             </div>
 
-            <div>
-                <label class="block text-sm font-bold mb-2 text-primary">Mensagem Inteligente WhatsApp (Links)</label>
-                <textarea name="whatsapp_message" rows="3"
-                    class="w-full px-4 py-3 rounded-xl border border-primary/20 outline-none">{{ store.whatsapp_message if store else 'Olá! Quero comprar estes itens: ' }}</textarea>
-                <p class="text-[10px] text-slate-400 mt-1">O sistema adicionará a lista de produtos e o valor total ao
-                    final desta mensagem.</p>
-            </div>
+            <hr class="border-slate-100">
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-bold mb-2">Cor Primária</label>
-                    <input type="color" name="primary_color" value="{{ store.primary_color if store else '#3B82F6' }}"
-                        class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold mb-2">Cor Secundária</label>
-                    <input type="color" name="secondary_color"
-                        value="{{ store.secondary_color if store else '#10B981' }}"
-                        class="w-full h-12 rounded-xl border border-slate-200 cursor-pointer">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-6">
-                <div>
-                    <label class="block text-sm font-bold mb-2 text-primary">Usuário Admin</label>
-                    <input type="text" name="admin_user" value="{{ store.admin_user if store else 'admin' }}"
-                        class="w-full px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold mb-2 text-primary">Senha Admin</label>
-                    <input type="text" name="admin_password"
-                        value="{{ store.admin_password if store else 'vaptvupt123' }}"
-                        class="w-full px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+            <!-- Perfil Admin -->
+            <div class="space-y-6">
+                <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">Segurança da Conta</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold mb-2 text-slate-400">Usuário do Sistema</label>
+                        <input type="text" name="admin_user" value="admin" readonly
+                            class="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed">
+                        <span class="text-[9px] text-slate-400 italic">O usuário padrão não pode ser alterado.</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Alterar Minha Senha Admin</label>
+                        <input type="text" name="admin_password"
+                            value="{{ store.admin_password if store else 'admin' }}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary outline-none font-mono">
+                    </div>
                 </div>
             </div>
 
             <button type="submit"
-                class="w-full py-4 btn-primary text-white rounded-2xl font-bold shadow-lg shadow-blue-200 mt-4">Salvar
-                Configurações</button>
+                class="w-full py-5 bg-slate-800 text-white rounded-3xl font-black text-xl shadow-xl hover:bg-slate-900 active:scale-95 transition-all">
+                ATUALIZAR CONFIGURAÇÕES DA LOJA
+            </button>
         </form>
     </div>
 </div>
@@ -194,6 +280,38 @@
         document.getElementById( `section-${ tab }` ).classList.remove( 'hidden' );
         document.getElementById( `tab-${ tab }` ).classList.add( 'text-primary', 'border-primary' );
         document.getElementById( `tab-${ tab }` ).classList.remove( 'text-slate-400', 'border-transparent' );
+    }
+
+    async function importProduct ()
+    {
+        const url = document.getElementById( 'import_url' ).value;
+        if ( !url ) return alert( 'Insira uma URL válida' );
+
+        const btn = event.target;
+        btn.innerText = 'BUSCANDO...';
+        btn.disabled = true;
+
+        try
+        {
+            const res = await fetch( `/vendedor/fetch-metadata?url=${ encodeURIComponent( url ) }` );
+            const data = await res.json();
+
+            if ( data.error ) throw new Error( data.error );
+
+            document.getElementById( 'p_name' ).value = data.title || '';
+            document.getElementById( 'p_desc' ).value = data.description || '';
+            document.getElementById( 'p_img' ).value = data.image || '';
+            document.getElementById( 'p_ext' ).value = url;
+
+            alert( 'Dados importados! Se houver uma imagem, ela foi vinculada via link.' );
+        } catch ( e )
+        {
+            alert( 'Erro ao importar: ' + e.message );
+        } finally
+        {
+            btn.innerText = 'IMPORTAR';
+            btn.disabled = false;
+        }
     }
 </script>
 {% endblock %}

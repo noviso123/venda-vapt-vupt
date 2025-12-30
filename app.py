@@ -1,5 +1,7 @@
 import os
 import urllib.parse
+import requests
+import re
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -313,9 +315,13 @@ def admin_add_product():
     if not check_auth(): return redirect(url_for('admin_login'))
     store = get_store()
     product_data = {
-        "store_id": store['id'], "name": request.form.get('name'), "description": request.form.get('description'),
-        "price": float(request.form.get('price')), "stock_quantity": int(request.form.get('stock_quantity', 99)),
-        "image_url": request.form.get('image_url')
+        "store_id": store['id'],
+        "name": request.form.get('name'),
+        "description": request.form.get('description'),
+        "price": float(request.form.get('price') or 0),
+        "stock_quantity": int(request.form.get('stock_quantity', 99)),
+        "image_url": request.form.get('image_url'),
+        "external_url": request.form.get('external_url')
     }
     file = request.files.get('file')
     if file and file.filename:
@@ -327,12 +333,73 @@ def admin_add_product():
     supabase.table('products').insert(product_data).execute()
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/vendedor/produto/<product_id>/delete', methods=['POST'])
+def admin_delete_product(product_id):
+    if not check_auth(): return redirect(url_for('admin_login'))
+    supabase.table('products').delete().eq('id', product_id).execute()
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/vendedor/pedido/<order_id>/status', methods=['POST'])
 def update_order_status(order_id):
     if not check_auth(): return redirect(url_for('admin_login'))
     new_status = request.form.get('status')
     supabase.table('orders').update({"status": new_status}).eq('id', order_id).execute()
     return redirect(url_for('admin_dashboard'))
+
+# --- NOVAS FUNCIONALIDADES AVANÇADAS ---
+
+@app.route('/vendedor/fetch-metadata')
+def fetch_metadata():
+    if not check_auth(): return jsonify({"error": "unauthorized"}), 401
+    url_to_fetch = request.args.get('url')
+    if not url_to_fetch: return jsonify({"error": "no url"}), 400
+
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        response = requests.get(url_to_fetch, headers=headers, timeout=10)
+        html = response.text
+
+        title = ""
+        image = ""
+        description = ""
+
+        title_match = re.search('<title>(.*?)</title>', html, re.IGNORECASE)
+        if title_match: title = title_match.group(1)
+
+        og_title = re.search('property="og:title" content="(.*?)"', html)
+        if og_title: title = og_title.group(1)
+
+        og_image = re.search('property="og:image" content="(.*?)"', html)
+        if og_image: image = og_image.group(1)
+
+        og_desc = re.search('property="og:description" content="(.*?)"', html)
+        if og_desc: description = og_desc.group(1)
+
+        return jsonify({
+            "title": title,
+            "image": image,
+            "description": description
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/vendedor/clientes')
+def admin_customers():
+    if not check_auth(): return redirect(url_for('admin_login'))
+    customers = []
+    try:
+        customers = supabase.table('customers').select("*").order('name').execute().data
+    except: pass
+    return render_template('admin_customers.html', customers=customers)
+
+@app.route('/vendedor/cliente/reset-senha', methods=['POST'])
+def admin_reset_customer_password():
+    if not check_auth(): return redirect(url_for('admin_login'))
+    cid = request.form.get('customer_id')
+    new_pass = request.form.get('new_password')
+    if cid and new_pass:
+        supabase.table('customers').update({"password": new_pass}).eq('id', cid).execute()
+    return redirect(url_for('admin_customers'))
 
 if __name__ == '__main__':
     app.run(debug=True)

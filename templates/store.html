@@ -33,10 +33,12 @@
 <!-- GRADE DE PRODUTOS -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
     {% for product in products %}
-    <div class="glass p-6 rounded-3xl group transition-all hover:-translate-y-2">
-        <div class="aspect-square rounded-2xl overflow-hidden mb-6 bg-slate-100 relative">
+    <div
+        class="glass p-6 rounded-3xl group transition-all hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-2">
+        <div class="aspect-square rounded-2xl overflow-hidden mb-6 bg-slate-100 relative shadow-inner">
             {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+            <img src="{{ product.image_url }}" alt="{{ product.name }}"
+                class="w-full h-full object-cover group-hover:scale-110 transition-all duration-500">
             {% else %}
             <div class="w-full h-full flex items-center justify-center text-slate-300">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
@@ -47,67 +49,118 @@
             </div>
             {% endif %}
 
-            <!-- TAG DE ESTOQUE -->
-            <div class="absolute top-4 right-4">
+            <!-- TAGS DE STATUS -->
+            <div class="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                {% if product.external_url %}
+                <span
+                    class="bg-emerald-500 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase shadow-lg">Oferta
+                    Externa</span>
+                {% endif %}
+
                 {% if product.stock_quantity <= 0 %}
                 <span
-                    class="bg-red-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">Esgotado</span>
+                    class="bg-red-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase shadow-lg">Esgotado</span>
                 {% elif product.stock_quantity < 5 %}
-                <span class="bg-orange-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">Últimas
-                    {{ product.stock_quantity }} unidades</span>
+                <span
+                    class="bg-orange-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase shadow-lg">Só
+                    {{ product.stock_quantity }} restam</span>
                 {% endif %}
             </div>
         </div>
 
-        <h3 class="text-xl font-bold text-slate-800 mb-2">{{ product.name }}</h3>
+        <h3 class="text-xl font-bold text-slate-800 mb-2 truncate" title="{{ product.name }}">{{ product.name }}</h3>
         <p class="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{{ product.description }}</p>
 
-        <div class="flex items-center justify-between">
-            <span class="text-2xl font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</span>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="text-2xl font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</span>
 
-            {% if product.stock_quantity > 0 %}
-            <button hx-post="/carrinho/adicionar" hx-vals='{"product_id": "{{ product.id }}"}'
+                {% if not product.external_url and product.stock_quantity > 0 %}
+                <!-- Seletor de Qtd (Mobile Friendly) -->
+                <div class="flex items-center bg-slate-100 rounded-xl p-1 gap-3">
+                    <button onclick="changeQty('{{ product.id }}', -1)"
+                        class="w-8 h-8 flex items-center justify-center text-slate-500 font-bold hover:bg-white rounded-lg transition-all">-</button>
+                    <span id="qty-{{ product.id }}" class="text-sm font-black text-slate-800 w-4 text-center">1</span>
+                    <button onclick="changeQty('{{ product.id }}', 1)"
+                        class="w-8 h-8 flex items-center justify-center text-slate-500 font-bold hover:bg-white rounded-lg transition-all">+</button>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if product.external_url %}
+            <a href="{{ product.external_url }}" target="_blank"
+                class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black text-center block shadow-xl hover:bg-slate-900 transition-all active:scale-95 uppercase tracking-wider text-sm">
+                COMPRAR AGORA NO SITE
+            </a>
+            {% elif product.stock_quantity > 0 %}
+            <button id="btn-{{ product.id }}" hx-post="/carrinho/adicionar"
+                hx-vals='js:{"product_id": "{{ product.id }}", "quantity": document.getElementById("qty-{{ product.id }}").innerText}'
                 hx-target="#cart-indicator"
-                class="btn-primary text-white p-4 rounded-2xl shadow-lg shadow-blue-200 hover:scale-105 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                class="w-full py-4 btn-primary text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
+                ADICIONAR AO CARRINHO
             </button>
             {% else %}
-            <button disabled class="bg-slate-200 text-slate-400 p-4 rounded-2xl cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
+            <button disabled
+                class="w-full py-4 bg-slate-200 text-slate-400 rounded-2xl font-black cursor-not-allowed uppercase text-sm">
+                PRODUTO INDISPONÍVEL
             </button>
             {% endif %}
         </div>
     </div>
     {% else %}
-    <div class="col-span-full py-20 text-center">
-        <p class="text-slate-400 text-lg">Nenhum produto encontrado.</p>
+    <div class="col-span-full py-24 text-center">
+        <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <p class="text-slate-400 text-lg font-bold">Nenhum produto encontrado.</p>
         {% if query %}
-        <a href="/" class="text-primary font-bold hover:underline">Limpar filtros</a>
+        <a href="/" class="text-primary font-bold hover:underline mt-2 inline-block">Limpar filtros de busca</a>
         {% endif %}
     </div>
     {% endfor %}
 </div>
 
-<!-- MODAL DE ERRO HTMX -->
+<!-- Lógica Auxiliar -->
 <script>
+    function changeQty ( id, delta )
+    {
+        const qtyEl = document.getElementById( 'qty-' + id );
+        let current = parseInt( qtyEl.innerText );
+        current += delta;
+        if ( current < 1 ) current = 1;
+        if ( current > 99 ) current = 99;
+        qtyEl.innerText = current;
+    }
+
     document.body.addEventListener( 'htmx:afterRequest', function ( evt )
     {
         if ( evt.detail.xhr.status === 200 )
         {
-            const res = JSON.parse( evt.detail.xhr.responseText );
-            if ( res.status === 'error' )
+            try
             {
-                alert( res.message );
-            }
+                const res = JSON.parse( evt.detail.xhr.responseText );
+                if ( res.status === 'success' )
+                {
+                    // Feedback visual de sucesso (opcional)
+                    const indicator = document.getElementById( 'cart-indicator' );
+                    indicator.classList.add( 'scale-125', 'bg-red-500' );
+                    setTimeout( () => indicator.classList.remove( 'scale-125', 'bg-red-500' ), 500 );
+                } else if ( res.status === 'error' )
+                {
+                    alert( res.message );
+                }
+            } catch ( e ) { }
         }
     } );
 </script>
+{% endblock %}
 {% endblock %}
