@@ -1,0 +1,8 @@
+flask
+python-dotenv
+supabase
+qrcode
+pydantic
+psycopg2-binary
+requests
+gunicorn

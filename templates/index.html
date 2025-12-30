@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-16">
+    <h1 class="text-5xl font-black mb-4 bg-gradient-to-r from-slate-900 to-slate-500 bg-clip-text text-transparent">
+        Venda Vapt Vupt
+    </h1>
+    <p class="text-slate-500 text-lg">Produtos entregues em minutos. Compre sem login.</p>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    {% for store in stores %}
+    <a href="/loja/{{ store.slug }}"
+        class="glass p-6 rounded-3xl hover:shadow-2xl transition-all group border-b-4 border-indigo-500 hover:-translate-y-2">
+        <div class="flex items-center gap-4 mb-6">
+            {% if store.logo_url %}
+            <img src="{{ store.logo_url }}" class="w-16 h-16 rounded-2xl">
+            {% else %}
+            <div
+                class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 font-bold text-2xl">
+                {{ store.name[0] }}
+            </div>
+            {% endif %}
+            <div>
+                <h2 class="text-xl font-bold group-hover:text-indigo-600 transition-colors">{{ store.name }}</h2>
+                <p class="text-xs text-slate-400">{{ store.address_city }}</p>
+            </div>
+        </div>
+        <div class="flex justify-between items-center text-sm">
+            <span class="text-slate-500">Ver Catálogo</span>
+            <div
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
