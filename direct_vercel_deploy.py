@@ -48,6 +48,7 @@ def direct_deploy():
     deploy_payload = {
         "name": PROJECT_NAME,
         "files": files_to_deploy,
+        "target": "production",
         "projectSettings": {
             "framework": None
         }

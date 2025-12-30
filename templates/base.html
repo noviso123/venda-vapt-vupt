@@ -4,25 +4,26 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{ store.name if store else 'Venda Vapt Vupt' }} - Venda sem Login</title>
-        {% if store and store.logo_url %}
-        <link rel="icon" type="image/x-icon" href="{{ store.logo_url }}">
-        {% else %}
+        <title>{{ store.name if store else 'Vapt Vupt' }} - Entrega Inteligente</title>
+
+        <!-- FAVICON PREMIUM -->
         <link rel="icon" type="image/svg+xml"
             href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%233B82F6'/><path d='M30 50 L50 20 L45 50 L70 50 L50 80 L55 50 Z' fill='white'/></svg>">
-        {% endif %}
+
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
         <style>
             body {
                 font-family: 'Outfit', sans-serif;
+                -webkit-font-smoothing: antialiased;
             }
 
             :root {
                 --primary-color: {
                         {
-                        store.primary_color if store else '#3B82F6'
+                        store.primary_color if (store and store.primary_color) else '#3B82F6'
                     }
                 }
 
@@ -30,7 +31,7 @@
 
                 --secondary-color: {
                         {
-                        store.secondary_color if store else '#10B981'
+                        store.secondary_color if (store and store.secondary_color) else '#10B981'
                     }
                 }
 
@@ -39,10 +40,12 @@
 
             .btn-primary {
                 background-color: var(--primary-color);
+                transition: all 0.2s ease;
             }
 
             .btn-primary:hover {
                 filter: brightness(90%);
+                transform: translateY(-2px);
             }
 
             .text-primary {
@@ -51,7 +54,7 @@
 
             .glass {
                 background: rgba(255, 255, 255, 0.85);
-                backdrop-filter: blur(12px);
+                backdrop-filter: blur(16px);
                 border: 1px solid rgba(255, 255, 255, 0.3);
             }
 
@@ -63,33 +66,36 @@
             .htmx-request .htmx-indicator {
                 opacity: 1;
             }
-
-            .htmx-request.htmx-indicator {
-                opacity: 1;
-            }
         </style>
     </head>
 
     <body class="bg-slate-50 text-slate-900 min-h-screen">
-        <header class="glass fixed top-0 w-full z-50">
+        <header class="glass fixed top-0 w-full z-50 shadow-sm">
             <div class="container mx-auto px-4 h-20 flex items-center justify-between">
-                <a href="/" class="flex items-center gap-3">
+                <!-- LOGO PREMIUM -->
+                <a href="/" class="flex items-center gap-3 active:scale-95 transition-all">
                     <div
-                        class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24"
+                        class="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" viewBox="0 0 24 24"
                             fill="currentColor">
                             <path d="M11 20 L15 11 L12 11 L15 4 L8 12 L11 12 Z" />
                         </svg>
                     </div>
-                    <span class="text-2xl font-black text-slate-800 tracking-tighter">VAPT <span
-                            class="text-primary">VUPT</span></span>
+                    <div class="hidden sm:block">
+                        <span
+                            class="text-2xl font-black text-slate-800 leading-tight tracking-tighter block uppercase">VAPT
+                            <span class="text-primary">VUPT</span></span>
+                        <span
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-[4px] -mt-1 block">Express</span>
+                    </div>
                 </a>
+
                 <div class="flex items-center gap-4">
-                    <!-- Login Colaborador/Cliente -->
-                    <a href="/login" class="p-2 rounded-xl bg-slate-100 hover:bg-primary/10 transition-all group"
-                        title="Minha Conta">
+                    <!-- Login Colaborador -->
+                    <a href="/login" class="p-3 rounded-2xl bg-slate-100 hover:bg-primary/10 transition-all group"
+                        title="Área do Vendedor">
                         <svg xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6 text-slate-600 group-hover:text-primary transition-all" fill="none"
+                            class="h-6 w-6 text-slate-500 group-hover:text-primary transition-all" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -97,11 +103,12 @@
                     </a>
 
                     <!-- Carrinho -->
-                    <div id="cart-indicator" class="relative cursor-pointer group">
+                    <a href="/checkout" id="cart-indicator" class="relative group">
                         <span
-                            class="bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center absolute -top-2 -right-2 hidden border-2 border-white"
+                            class="bg-red-500 text-white text-[10px] font-black rounded-full h-5 w-5 flex items-center justify-center absolute -top-2 -right-2 hidden border-2 border-white animate-bounce"
                             id="cart-count">0</span>
-                        <div class="p-2 rounded-xl bg-slate-100 group-hover:bg-primary/10 transition-all">
+                        <div
+                            class="p-3 rounded-2xl bg-white shadow-sm border border-slate-100 group-hover:border-primary transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                 class="h-6 w-6 text-slate-600 group-hover:text-primary transition-all" fill="none"
                                 viewBox="0 0 24 24" stroke="currentColor">
@@ -109,23 +116,34 @@
                                     d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                             </svg>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
         </header>
 
-        <main class="container mx-auto px-4 pt-24 pb-12">
+        <main class="container mx-auto px-4 pt-28 pb-12">
             {% block content %}{% endblock %}
         </main>
 
         <script>
+            // Lógica Global de Atualização do Carrinho
             document.body.addEventListener( 'htmx:afterOnLoad', function ( evt )
             {
-                if ( evt.detail.xhr.responseJSON && evt.detail.xhr.responseJSON.cart_count )
+                if ( evt.detail.xhr.response )
                 {
-                    const badge = document.getElementById( 'cart-count' );
-                    badge.innerText = evt.detail.xhr.responseJSON.cart_count;
-                    badge.classList.remove( 'hidden' );
+                    try
+                    {
+                        const res = JSON.parse( evt.detail.xhr.response );
+                        if ( res.status === 'success' && res.cart_count !== undefined )
+                        {
+                            const badge = document.getElementById( 'cart-count' );
+                            badge.innerText = res.cart_count;
+                            badge.classList.remove( 'hidden' );
+                        } else if ( res.status === 'error' )
+                        {
+                            alert( 'Erro: ' + res.message );
+                        }
+                    } catch ( e ) { }
                 }
             } );
         </script>

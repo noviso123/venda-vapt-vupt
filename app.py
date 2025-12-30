@@ -22,6 +22,7 @@ def init_db():
     try:
         res = supabase.table('stores').select("id").eq('slug', 'default').execute()
         if not res.data:
+            print("CRIANDO LOJA DEFAULT NO BANCO...")
             supabase.table('stores').upsert({
                 "slug": "default",
                 "name": "Venda Vapt Vupt",
@@ -30,19 +31,30 @@ def init_db():
                 "admin_password": "vaptvupt123",
                 "whatsapp_message": "Olá! Quero comprar estes itens: "
             }).execute()
-    except: pass
+    except Exception as e:
+        print(f"Erro no init_db: {e}")
 
 init_db()
 
 def get_store():
+    # Mock Store de Fallback para evitar erro 500 se o Supabase estiver offline
+    fallback_store = {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "name": "Minha Loja Vapt Vupt",
+        "whatsapp": "5511999999999",
+        "primary_color": "#3B82F6",
+        "secondary_color": "#10B981",
+        "logo_url": None,
+        "whatsapp_message": "Olá!"
+    }
     try:
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
         if res.data: return res.data[0]
         init_db()
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
-        return res.data[0] if res.data else None
+        return res.data[0] if res.data else fallback_store
     except:
-        return None
+        return fallback_store
 
 # --- HELPERS ---
 def check_auth():
@@ -69,7 +81,7 @@ def index():
     products = []
 
     try:
-        if store:
+        if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
             req = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True)
             if query:
                 req = req.ilike('name', f'%{query}%')
@@ -106,17 +118,16 @@ def checkout():
     store = get_store()
     if request.method == 'POST':
         # Concatenar endereço completo
-        street = request.form.get('street')
-        number = request.form.get('number')
-        complement = request.form.get('complement')
-        neighborhood = request.form.get('neighborhood')
-        city = request.form.get('city')
-        state = request.form.get('state')
-        cep = request.form.get('cep')
+        street = request.form.get('street', 'Não informado')
+        number = request.form.get('number', 'S/N')
+        complement = request.form.get('complement', '')
+        neighborhood = request.form.get('neighborhood', '')
+        city = request.form.get('city', '')
+        state = request.form.get('state', '')
+        cep = request.form.get('cep', '')
 
         address_details = f"{street}, {number}"
-        if complement:
-            address_details += f" - {complement}"
+        if complement: address_details += f" - {complement}"
         address_details += f", {neighborhood}, {city} - {state} (CEP: {cep})"
 
         customer_data = {
@@ -144,7 +155,7 @@ def checkout():
                     cart_for_wa.append({"name": p['name'], "quantity": qty})
 
                     # Deduzir estoque
-                    new_stock = p['stock_quantity'] - qty
+                    new_stock = (p.get('stock_quantity') or 0) - qty
                     supabase.table('products').update({"stock_quantity": new_stock}).eq('id', pid).execute()
             except: pass
 
@@ -154,7 +165,7 @@ def checkout():
             "subtotal": total,
             "total": total,
             "status": "pending_payment",
-            "delivery_address": customer_data['address_full']
+            "delivery_address": address_details
         }).execute()
 
         order_id = order_res.data[0]['id']
@@ -192,8 +203,11 @@ def admin_login():
         password = request.form.get('password', '').strip()
         store = get_store()
 
-        if (store and store.get('admin_user') == username and store.get('admin_password') == password) or \
-           (not store and username == 'admin' and password == 'vaptvupt123'):
+        # Login Resiliente
+        is_store_admin = store and store.get('admin_user') == username and store.get('admin_password') == password
+        is_default_admin = (not store or not store.get('admin_user')) and username == 'admin' and password == 'vaptvupt123'
+
+        if is_store_admin or is_default_admin:
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
 
@@ -214,7 +228,7 @@ def admin_dashboard():
     orders = []
     products = []
 
-    if store:
+    if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
         try:
             orders_res = supabase.table('orders').select("*, customers(*)").eq('store_id', store['id']).order('created_at', desc=True).execute()
             orders = orders_res.data if orders_res.data else []
