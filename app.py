@@ -362,7 +362,21 @@ def admin_add_product():
             supabase.storage.from_('product-images').upload(filename, file.read())
             product_data["image_url"] = supabase.storage.from_('product-images').get_public_url(filename)
         except: pass
-    supabase.table('products').insert(product_data).execute()
+    p_res = supabase.table('products').insert(product_data).execute()
+
+    if p_res.data:
+        new_prod_id = p_res.data[0]['id']
+        extra_images_json = request.form.get('extra_images')
+
+        if extra_images_json:
+            try:
+                import json
+                images_list = json.loads(extra_images_json)
+                if isinstance(images_list, list):
+                    img_rows = [{"product_id": new_prod_id, "image_url": img, "display_order": i} for i, img in enumerate(images_list)]
+                    if img_rows: supabase.table('product_images').insert(img_rows).execute()
+            except: pass
+
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/vendedor/produto/<product_id>/delete', methods=['POST'])

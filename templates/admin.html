@@ -95,18 +95,19 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold mb-2">Preço (R$)</label>
-                        <input type="number" step="0.01" name="price" id="p_price" required
-                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                        <input type="number" step="0.01" name="price" id="p_price" placeholder="0.00"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-2 text-blue-600">Estoque</label>
-                        <input type="number" name="stock_quantity" id="p_stock" value="1" required
-                            class="w-full px-4 py-3 rounded-xl border border-blue-200">
+                        <label class="block text-sm font-bold mb-2">Estoque</label>
+                        <input type="number" name="stock_quantity" id="p_stock" value="1"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary outline-none">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold mb-2 text-emerald-600">Link de Venda Externo
-                        (Opcional)</label>
+                    <input type="hidden" name="extra_images" id="p_extra_images">
+                    <label class="block text-sm font-bold mb-2 text-emerald-600">Link Externo (Opcional -
+                        Afiliado/Dropshipping)</label>
                     <input type="text" name="external_url" id="p_ext" placeholder="https://..."
                         class="w-full px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50/10 placeholder:text-emerald-300">
                     <p class="text-[10px] text-slate-400 mt-1">Se preenchido, o botão no site direcionará o cliente para
@@ -339,6 +340,12 @@
             document.getElementById( 'p_ext' ).value = url;
             document.getElementById( 'p_stock' ).value = data.stock || 1;
             document.getElementById( 'p_price' ).value = data.price || '';
+
+            // Popula imagens extras
+            if ( data.images && data.images.length > 0 )
+            {
+                document.getElementById( 'p_extra_images' ).value = JSON.stringify( data.images );
+            }
 
             let msg = 'Dados importados!';
             if ( data.images && data.images.length > 1 ) msg += ` Encontradas ${ data.images.length } imagens.`;
