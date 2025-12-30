@@ -75,6 +75,60 @@ def generate_wa_link(phone, base_msg, cart_items=None, total=None):
         if total: msg += f"\n💰 *TOTAL:* R$ {total:.2f}"
     return f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
 
+def download_and_persist_image(image_url, prefix="img"):
+    """
+    Baixa imagem de URL externa, valida e persiste no Supabase Storage.
+    Retorna URL pública do storage ou None se falhar.
+    """
+    try:
+        # 1. Download com timeout
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(image_url, headers=headers, timeout=15, stream=True)
+
+        if response.status_code != 200:
+            app.logger.warning(f"Falha download imagem: {response.status_code} - {image_url}")
+            return None
+
+        # 2. Verificar tamanho (max 10MB)
+        content_length = response.headers.get('content-length')
+        if content_length and int(content_length) > 10 * 1024 * 1024:
+            app.logger.warning(f"Imagem muito grande: {content_length} bytes - {image_url}")
+            return None
+
+        image_data = response.content
+
+        # 3. Validar MIME básico
+        content_type = response.headers.get('content-type', '')
+        if not any(t in content_type.lower() for t in ['image/', 'jpeg', 'png', 'webp', 'gif']):
+            # Verificar magic bytes
+            if not (image_data[:3] == b'\xff\xd8\xff' or  # JPEG
+                    image_data[:8] == b'\x89PNG\r\n\x1a\n' or  # PNG
+                    image_data[:4] == b'RIFF' or  # WebP
+                    image_data[:6] in (b'GIF87a', b'GIF89a')):  # GIF
+                app.logger.warning(f"Arquivo não é imagem válida: {content_type} - {image_url}")
+                return None
+
+        # 4. Determinar extensão
+        ext = 'jpg'
+        if b'\x89PNG' in image_data[:10]: ext = 'png'
+        elif b'RIFF' in image_data[:10]: ext = 'webp'
+        elif b'GIF8' in image_data[:10]: ext = 'gif'
+
+        # 5. Gerar nome único e fazer upload
+        filename = f"{prefix}_{uuid.uuid4()}.{ext}"
+
+        supabase.storage.from_('product-images').upload(filename, image_data, {"content-type": f"image/{ext}"})
+
+        # 6. Retornar URL pública
+        public_url = supabase.storage.from_('product-images').get_public_url(filename)
+        app.logger.info(f"Imagem persistida: {filename} de {image_url}")
+        return public_url
+
+    except Exception as e:
+        app.logger.error(f"Erro ao persistir imagem {image_url}: {e}")
+        return None
+
+
 # --- ROTAS VITRINE ---
 @app.route('/')
 def index():
@@ -378,9 +432,17 @@ def admin_add_product():
                 import json
                 images_list = json.loads(extra_images_json)
                 if isinstance(images_list, list):
-                    img_rows = [{"product_id": new_prod_id, "image_url": img, "display_order": i} for i, img in enumerate(images_list)]
-                    if img_rows: supabase.table('product_images').insert(img_rows).execute()
-            except: pass
+                    img_rows = []
+                    for i, img_url in enumerate(images_list):
+                        # Baixar e persistir imagem no Storage
+                        persisted_url = download_and_persist_image(img_url, prefix=f"prod_{new_prod_id}")
+                        # Usar URL persistida ou fallback para URL externa
+                        final_url = persisted_url if persisted_url else img_url
+                        img_rows.append({"product_id": new_prod_id, "image_url": final_url, "display_order": i})
+                    if img_rows:
+                        supabase.table('product_images').insert(img_rows).execute()
+            except Exception as e:
+                app.logger.error(f"Erro ao processar imagens extras: {e}")
 
     return redirect(url_for('admin_dashboard'))
 
