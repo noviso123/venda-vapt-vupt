@@ -15,6 +15,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "prod_secret_vapt123")
 app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 7  # 7 dias em segundos
 app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_TYPE'] = 'filesystem' # Garantir persistência local se possível
 
 # Configuração Supabase
 url: str = os.getenv("SUPABASE_URL")
@@ -337,22 +338,32 @@ def admin_login():
         password = request.form.get('password', '').strip()
         store = get_store()
 
-        # 1. Login Superadmin (Sistema / Suporte)
-        # Usando senha fixa do env ou default segura
-        super_pass = os.getenv("SUPERADMIN_PASSWORD", "vaptvupt@2024")
+        app.logger.info(f"Tentativa de login: {login_id}")
+
+        # 1. Login Superadmin
+        super_pass = os.getenv("SUPERADMIN_PASSWORD", "super1234").strip()
+        app.logger.info(f"DEBUG: Superadmin esperado: superadmin / {super_pass}")
+
         if login_id == 'superadmin' and password == super_pass:
+            app.logger.info("Login Superadmin SUCESSO")
+            session.clear() # Limpar sessões anteriores
             session.permanent = True
             session['is_superadmin'] = True
-            session['is_admin'] = True # Superadmin também é admin
+            session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
 
-        # 2. Login Admin da Loja (Vendedor)
-        # Sempre username 'admin'
-        if login_id == 'admin' and store and store.get('admin_password') == password:
-            session.permanent = True
-            session['is_admin'] = True
-            session['is_superadmin'] = False
-            return redirect(url_for('admin_dashboard'))
+        # 2. Login Admin da Loja
+        if store:
+            stored_pass = store.get('admin_password', 'admin').strip()
+            app.logger.info(f"DEBUG: Admin esperado para loja: admin / {stored_pass}")
+
+            if login_id == 'admin' and password == stored_pass:
+                app.logger.info("Login Admin SUCESSO")
+                session.clear()
+                session.permanent = True
+                session['is_admin'] = True
+                session['is_superadmin'] = False
+                return redirect(url_for('admin_dashboard'))
 
         # 3. Login Cliente
         try:
@@ -361,13 +372,17 @@ def admin_login():
                 c_res = supabase.table('customers').select("*").eq('whatsapp', login_id).eq('password', password).execute()
 
             if c_res.data:
+                app.logger.info(f"Login Cliente SUCESSO: {c_res.data[0]['name']}")
+                session.clear()
                 session.permanent = True
                 session['customer_id'] = c_res.data[0]['id']
                 session['customer_name'] = c_res.data[0]['name']
                 if session.get('cart'): return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
-        except: pass
+        except Exception as e:
+            app.logger.error(f"Erro login cliente: {e}")
 
+        app.logger.warning(f"Login FALHOU para: {login_id}")
         return render_template('login.html', error="Login ou senha incorretos")
     return render_template('login.html')
 
