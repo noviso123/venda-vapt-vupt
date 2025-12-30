@@ -28,11 +28,17 @@ def init_db():
             # Como não podemos rodar SQL arbitrário via SDK Rest,
             # assumimos que tabelas existem ou usamos RPC se configurado.
             # Por agora, garantimos que seeds rodam se tabelas existirem.
-            supabase.table('stores').upsert({"slug": "default", "name": "Venda Vapt Vupt", "whatsapp": "5511999999999"}).execute()
+            supabase.table('stores').upsert({
+                "slug": "default",
+                "name": "Venda Vapt Vupt",
+                "whatsapp": "5511999999999",
+                "admin_user": "admin",
+                "admin_password": "vaptvupt123"
+            }).execute()
     except Exception as e:
         print(f"Nota: Certifique-se de rodar o SQL no painel do Supabase uma vez. Erro: {e}")
 
-# init_db() # Chamado no boot se necessário
+init_db() # Chamado no boot para garantir que a loja principal exista
 
 def get_store():
     # Em Single-Tenant, sempre pegamos a única loja ativada
