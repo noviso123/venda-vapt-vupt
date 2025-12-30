@@ -434,10 +434,13 @@ def admin_add_product():
                 if isinstance(images_list, list):
                     img_rows = []
                     for i, img_url in enumerate(images_list):
-                        # Baixar e persistir imagem no Storage
-                        persisted_url = download_and_persist_image(img_url, prefix=f"prod_{new_prod_id}")
-                        # Usar URL persistida ou fallback para URL externa
-                        final_url = persisted_url if persisted_url else img_url
+                        # Se já é URL do Supabase Storage, não baixar novamente
+                        if 'supabase' in img_url.lower() or 'storage' in img_url.lower():
+                            final_url = img_url
+                        else:
+                            # Baixar e persistir imagem externa no Storage
+                            persisted_url = download_and_persist_image(img_url, prefix=f"prod_{new_prod_id}")
+                            final_url = persisted_url if persisted_url else img_url
                         img_rows.append({"product_id": new_prod_id, "image_url": final_url, "display_order": i})
                     if img_rows:
                         supabase.table('product_images').insert(img_rows).execute()
