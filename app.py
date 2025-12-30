@@ -12,17 +12,32 @@ import httpx
 import ssl
 from supabase.lib.client_options import ClientOptions
 
-# --- SOLUÇÃO DEFINITIVA SSL (Monkeypatch Global) ---
-# Isso força o Python a ignorar a verificação de certificados em todas as bibliotecas (httpx, requests, etc.)
-# Essencial para ambientes com proxys/firewalls que interceptam tráfego HTTPS.
+# --- SOLUÇÃO NUCLEAR SSL (Monkeypatch Global httpx + ssl) ---
+# Força o Python e o httpx (Supabase) a ignorar a verificação de certificados.
+# Essencial para ambientes com proxys/firewalls que interceptam tráfego HTTPS causando "self-signed certificate".
+
+# 1. Patch para bibliotecas que usam o módulo ssl padrão (requests, etc)
 try:
     _create_unverified_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context
+except AttributeError: pass
+else: ssl._create_default_https_context = _create_unverified_https_context
 
-# Desabilitar avisos de SSL se necessário para scrapers em sites com cert incompleto
+# 2. Patch agressivo para HTTPX (usado pelo Supabase-py)
+# Redefinimos o construtor do Client para sempre ignorar SSL
+original_client_init = httpx.Client.__init__
+def patched_client_init(self, *args, **kwargs):
+    kwargs['verify'] = False
+    original_client_init(self, *args, **kwargs)
+httpx.Client.__init__ = patched_client_init
+
+# Também para AsyncClient por segurança
+original_async_client_init = httpx.AsyncClient.__init__
+def patched_async_client_init(self, *args, **kwargs):
+    kwargs['verify'] = False
+    original_async_client_init(self, *args, **kwargs)
+httpx.AsyncClient.__init__ = patched_async_client_init
+
+# Desabilitar avisos de SSL (InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Carregar variáveis de ambiente
