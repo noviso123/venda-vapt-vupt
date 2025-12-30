@@ -172,12 +172,19 @@ def checkout():
 
         customer_data = {
             "name": request.form.get('name'),
+            "email": request.form.get('email'),
             "whatsapp": request.form.get('whatsapp'),
             "address_full": address_details
         }
 
-        cust_res = supabase.table('customers').upsert(customer_data, on_conflict="whatsapp").execute()
-        customer_id = cust_res.data[0]['id']
+        cust_res = supabase.table('customers').upsert(customer_data, on_conflict="email").execute()
+        if cust_res.data:
+            customer_id = cust_res.data[0]['id']
+            # Identifica automaticamente o cliente na sessão
+            session['customer_id'] = customer_id
+            session['customer_name'] = cust_res.data[0]['name']
+        else:
+            return render_template('checkout.html', error="Erro ao processar dados do cliente.", store=store)
 
         cart = session.get('cart', {})
         total = 0
