@@ -183,6 +183,30 @@
                 <input type="text" name="logo_url" value="{{ store.logo_url }}"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200 mt-2">
             </div>
+            <div class="border-t border-slate-100 pt-6">
+                <h4 class="font-bold text-sm mb-4 text-primary uppercase">Recebimento via PIX (Multi-Vendedor)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold mb-2">Chave PIX (Aleatória, CPF, etc)</label>
+                        <input type="text" name="pix_key" value="{{ store.pix_key or '' }}"
+                            placeholder="Cole sua chave aqui (pode ser aleatória)"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                        <p class="text-[10px] text-slate-400 mt-1 uppercase">Use chaves aleatórias para manter sua
+                            privacidade</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Nome do Beneficiário</label>
+                        <input type="text" name="pix_name" value="{{ store.pix_name or '' }}"
+                            placeholder="Nome como no banco"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Cidade do Banco</label>
+                        <input type="text" name="pix_city" value="{{ store.pix_city or 'SAO PAULO' }}"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200">
+                    </div>
+                </div>
+            </div>
             <div class="border-t border-slate-100 pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold mb-2 text-primary">Usuário Administrativo</label>

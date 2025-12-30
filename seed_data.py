@@ -18,6 +18,11 @@ def seed():
         "whatsapp": "5511999999999",
         "primary_color": "#4F46E5", # Indigo 600
         "secondary_color": "#10B981", # Emerald 500
+        "admin_user": "admin",
+        "admin_password": "vaptvupt123",
+        "pix_key": "vaptvupt@pix.com",
+        "pix_name": "LOJA DEMO",
+        "pix_city": "SAO PAULO",
         "address_street": "Av. Paulista",
         "address_number": "1000",
         "address_city": "São Paulo",

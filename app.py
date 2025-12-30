@@ -162,10 +162,10 @@ def order_confirmation(order_id):
     order_res = supabase.table('orders').select("*, stores(*)").eq('id', order_id).execute()
     order = order_res.data[0]
 
-    # Gerar Pix
-    pix_chave = os.getenv("PIX_CHAVE", "test@pix.com")
-    pix_nome = os.getenv("PIX_BENEFICIARIO", "VENDA VAPT VUPT")
-    pix_cidade = os.getenv("PIX_CIDADE", "SAO PAULO")
+    # Gerar Pix usando dados da LOJA
+    pix_chave = order['stores'].get('pix_key') or "pendente@pix.com"
+    pix_nome = order['stores'].get('pix_name') or order['stores'].get('name', 'VAPT VUPT')
+    pix_cidade = order['stores'].get('pix_city') or "SAO PAULO"
 
     pix = PixGenerator(pix_chave, pix_nome, pix_cidade, float(order['total']))
     qr_code, payload = pix.generate_qr_base64()
@@ -288,7 +288,10 @@ def admin_update_settings(slug):
         "address_city": request.form.get('address_city'),
         "address_state": request.form.get('address_state'),
         "admin_user": request.form.get('admin_user'),
-        "admin_password": request.form.get('admin_password')
+        "admin_password": request.form.get('admin_password'),
+        "pix_key": request.form.get('pix_key'),
+        "pix_name": request.form.get('pix_name'),
+        "pix_city": request.form.get('pix_city')
     }
     supabase.table('stores').update(store_data).eq('slug', slug).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
