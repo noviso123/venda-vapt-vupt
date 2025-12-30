@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto">
-    <div class="mb-12 text-center">
+<div class="max-w-3xl mx-auto px-4">
+    <div class="mb-10 text-center">
         <h2 class="text-3xl font-black text-slate-800 mb-2">Finalizar Compra</h2>
         <p class="text-slate-500">Preencha seus dados para entrega e pagamento.</p>
     </div>
 
     <form action="/checkout" method="POST" class="space-y-8">
-        <div class="glass p-8 rounded-3xl space-y-6">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <!-- Dados Pessoais -->
+        <div class="glass p-6 md:p-8 rounded-3xl space-y-6">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -31,8 +32,9 @@
             </div>
         </div>
 
-        <div class="glass p-8 rounded-3xl space-y-6">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <!-- Endereço de Entrega -->
+        <div class="glass p-6 md:p-8 rounded-3xl space-y-6">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -47,12 +49,12 @@
                 <div class="md:col-span-1">
                     <label class="block text-sm font-bold mb-2">CEP</label>
                     <input type="text" name="cep" id="cep" required placeholder="00000-000" maxlength="9"
-                        onblur="lookupCep(this.value)"
+                        inputmode="numeric"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary font-mono">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-bold mb-2">Rua / Logradouro</label>
-                    <input type="text" name="street" id="street" required placeholder="Aguardando CEP..."
+                    <input type="text" name="street" id="street" required placeholder="Preenchimento automático"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
                 </div>
             </div>
@@ -84,14 +86,14 @@
                 <div>
                     <label class="block text-sm font-bold mb-2">UF</label>
                     <input type="text" name="state" id="state" required maxlength="2"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary uppercase">
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary uppercase text-center font-bold">
                 </div>
             </div>
         </div>
 
         <button type="submit"
-            class="w-full py-5 bg-primary text-white rounded-2xl font-black text-xl shadow-xl shadow-blue-100 hover:scale-[1.02] transition-all">
-            Confirmar Pedido e Ver PIX
+            class="w-full py-5 bg-primary text-white rounded-2xl font-black text-xl shadow-xl shadow-blue-100 hover:scale-[1.02] active:scale-95 transition-all">
+            GERAR PIX E FINALIZAR
         </button>
     </form>
 </div>
@@ -108,12 +110,14 @@
             const stateInput = document.getElementById( 'state' );
             const numberInput = document.getElementById( 'number' );
 
-            streetInput.value = 'Buscando...';
+            const oldPlaceholder = streetInput.placeholder;
+            streetInput.placeholder = 'Buscando...';
 
             fetch( `https://viacep.com.br/ws/${ cep }/json/` )
                 .then( response => response.json() )
                 .then( data =>
                 {
+                    streetInput.placeholder = oldPlaceholder;
                     if ( !data.erro )
                     {
                         streetInput.value = data.logradouro;
@@ -124,22 +128,27 @@
                     } else
                     {
                         alert( 'CEP não encontrado.' );
-                        streetInput.value = '';
                     }
                 } )
                 .catch( () =>
                 {
+                    streetInput.placeholder = oldPlaceholder;
                     alert( 'Erro ao buscar CEP.' );
-                    streetInput.value = '';
                 } );
         }
     }
 
-    // Máscara básica para CEP
+    // Gatilho Automático e Máscara para CEP
     document.getElementById( 'cep' ).addEventListener( 'input', function ( e )
     {
-        var x = e.target.value.replace( /\D/g, '' ).match( /(\d{0,5})(\d{0,3})/ );
+        var raw = e.target.value.replace( /\D/g, '' );
+        var x = raw.match( /(\d{0,5})(\d{0,3})/ );
         e.target.value = !x[ 2 ] ? x[ 1 ] : x[ 1 ] + '-' + x[ 2 ];
+
+        if ( raw.length === 8 )
+        {
+            lookupCep( raw );
+        }
     } );
 </script>
 {% endblock %}
