@@ -7,6 +7,10 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from pix_utils import PixGenerator
 import uuid
+import urllib3
+
+# Desabilitar avisos de SSL se necessário para scrapers em sites com cert incompleto
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -92,9 +96,12 @@ def download_and_persist_image(image_url, prefix="img"):
     Retorna URL pública do storage ou None se falhar.
     """
     try:
-        # 1. Download com timeout
+        # 1. Download com timeout e fallback para SSL se necessário
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(image_url, headers=headers, timeout=15, stream=True)
+        try:
+            response = requests.get(image_url, headers=headers, timeout=15, stream=True)
+        except requests.exceptions.SSLError:
+            response = requests.get(image_url, headers=headers, timeout=15, stream=True, verify=False)
 
         if response.status_code != 200:
             app.logger.warning(f"Falha download imagem: {response.status_code} - {image_url}")
@@ -532,7 +539,13 @@ def fetch_metadata():
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        response = requests.get(url_to_fetch, headers=headers, timeout=15)
+
+        try:
+            response = requests.get(url_to_fetch, headers=headers, timeout=15)
+        except requests.exceptions.SSLError:
+            app.logger.warning(f"SSL falhou para {url_to_fetch}, tentando sem verificar cert...")
+            response = requests.get(url_to_fetch, headers=headers, timeout=15, verify=False)
+
         response.raise_for_status()
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
