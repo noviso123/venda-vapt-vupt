@@ -690,18 +690,53 @@ def fetch_metadata():
             tag = soup.find('meta', property='og:description') or soup.find('meta', attrs={'name': 'description'})
             data["description"] = tag.get('content') if tag else ""
 
-        # Preço Fallback
-        if not data["price"]:
-            price_tag = soup.find('meta', property='product:price:amount') or soup.find('meta', property='og:price:amount')
+        # === EXTRAÇÃO DE PREÇO AVANÇADA ===
+        if not data["price"] or data["price"] == 0:
+            # 1. Tentar meta tags específicas de valor
+            price_tag = soup.find('meta', property='product:price:amount') or \
+                        soup.find('meta', property='og:price:amount') or \
+                        soup.find('meta', attrs={'name': 'twitter:data1'})
+
             if price_tag:
-                try: data["price"] = float(price_tag.get('content'))
+                try:
+                    val = price_tag.get('content') or price_tag.get('value')
+                    data["price"] = float(re.sub(r'[^\d.]', '', val.replace(',', '.')))
                 except: pass
-            else:
-                import re
-                price_match = re.search(r'R\$\s?(\d+[.,]?\d*)', soup.get_text())
-                if price_match:
-                    try: data["price"] = float(price_match.group(1).replace('.', '').replace(',', '.'))
+
+        if not data["price"] or data["price"] == 0:
+            # 2. Procurar em seletores comuns de e-commerce
+            selectors = [
+                 '.price', '.current-price', '#priceblock_ourprice', '#priceblock_dealprice',
+                 '.vtex-product-summary-2-x-currencyInteger', '.valor-por', '.price-tag-fraction',
+                 '[itemprop="price"]', '.product-price', '.sales-price'
+            ]
+            for sel in selectors:
+                el = soup.select_one(sel)
+                if el:
+                    try:
+                        val = el.get_text(strip=True)
+                        data["price"] = float(re.sub(r'[^\d.]', '', val.replace('.', '').replace(',', '.')))
+                        if data["price"] > 0: break
                     except: pass
+
+        if not data["price"] or data["price"] == 0:
+            # 3. Regex exaustiva no corpo do texto (Fallback final)
+            price_patterns = [
+                r'R\$\s?(\d{1,3}(?:\.\d{3})*,\d{2})',
+                r'R\$\s?(\d+,\d{2})'
+            ]
+            text = soup.get_text()
+            for pattern in price_patterns:
+                match = re.search(pattern, text)
+                if match:
+                    try:
+                        val = match.group(1).replace('.', '').replace(',', '.')
+                        data["price"] = float(val)
+                        if data["price"] > 0: break
+                    except: pass
+
+        data["price"] = round(float(data["price"] or 0), 2)
+        data["original_price"] = data["price"] # Guardar para sugestão
 
         # 3. EXTRAÇÃO DE IMAGENS PREMIUM
         found_imgs = []
@@ -759,6 +794,7 @@ def fetch_metadata():
             "images": persisted_images,
             "video": data["video"],
             "price": data["price"],
+            "original_price": data["original_price"],
             "stock": 1,
             "images_persisted": True
         })
