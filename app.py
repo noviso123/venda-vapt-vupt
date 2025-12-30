@@ -524,8 +524,30 @@ def fetch_metadata():
             if match: data["title"] = match.group(1)
 
         if not data["description"]:
-             match = re.search(r'property=["\']og:description["\'] content=["\'](.*?)["\']', html)
-             if match: data["description"] = match.group(1)
+            # Tentar og:description
+            match = re.search(r'property=["\']og:description["\'] content=["\'](.*?)["\']', html, re.IGNORECASE)
+            if match:
+                data["description"] = match.group(1)
+
+            # Tentar meta description padrão
+            if not data["description"]:
+                match = re.search(r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']', html, re.IGNORECASE)
+                if match: data["description"] = match.group(1)
+
+            # Tentar twitter:description
+            if not data["description"]:
+                match = re.search(r'name=["\']twitter:description["\'] content=["\'](.*?)["\']', html, re.IGNORECASE)
+                if match: data["description"] = match.group(1)
+
+            # Tentar itemprop description
+            if not data["description"]:
+                match = re.search(r'itemprop=["\']description["\'][^>]*content=["\'](.*?)["\']', html, re.IGNORECASE)
+                if match: data["description"] = match.group(1)
+
+            # Tentar pegar do corpo - primeiro parágrafo grande
+            if not data["description"]:
+                match = re.search(r'<p[^>]*>([^<]{50,500})</p>', html)
+                if match: data["description"] = match.group(1).strip()
 
         if not data["price"]:
             # Tentar meta tags de preço
