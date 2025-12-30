@@ -6,22 +6,22 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: SUPABASE_URL
-        sync: false
+        value: https://ffkaiyyrxtpsxvtienec.supabase.co
       - key: SUPABASE_ANON_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZma2FpeXlyeHRwc3h2dGllbmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODY3MDIsImV4cCI6MjA4MjY2MjcwMn0.wzDMWdD_6IagNdO4fRQ7_nL40zLpZc1ViujoY_rbE9c
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZma2FpeXlyeHRwc3h2dGllbmVjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA4NjcwMiwiZXhwIjoyMDgyNjYyNzAyfQ.D7bFbHd-9cKr6hgh1JcqBhpwAZ26HFFvsOvNE-58YNg
       - key: PIX_CHAVE
-        sync: false
+        value: SUA_CHAVE_PIX_AQUI
       - key: PIX_BENEFICIARIO
-        sync: false
+        value: SEU_NOME_COMPLETO
       - key: PIX_CIDADE
-        sync: false
+        value: SUA_CIDADE
       - key: UBER_CLIENT_ID
-        sync: false
+        value: j4Rp_-knIoX_HaVv_hn2cPz2SWLH-lZv
       - key: UBER_CLIENT_SECRET
-        sync: false
+        value: xQZh2ofVP_kDMdZG9mggaQQorCyi1eIhQ3GDCOyP
       - key: UBER_CUSTOMER_ID
-        sync: false
+        value: SUA_CUSTOMER_ID_DO_DIRECT_UBER_COM
       - key: SECRET_KEY
         generateValue: true
