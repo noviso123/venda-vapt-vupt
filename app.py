@@ -95,15 +95,19 @@ def index():
     except Exception as e:
         app.logger.error(f"Erro Vitrine: {e}")
 
-    return render_template('store.html', store=store, products=products, query=query)
+    try:
+        return render_template('store.html', store=store, products=products, query=query)
+    except Exception as e:
+        app.logger.error(f"Erro ao renderizar Vitrine: {e}")
+        return render_template('error.html', error="Erro de exibição", store=store), 500
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('error.html', error="Página não encontrada"), 404
+    return render_template('error.html', error="Página não encontrada", store=get_store()), 404
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('error.html', error="Erro interno"), 500
+    return render_template('error.html', error="Erro interno", store=get_store()), 500
 
 @app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
