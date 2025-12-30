@@ -578,19 +578,23 @@ def optimize_marketing_data(raw_data):
 
     # 1. Otimização de Título (Magnético)
     if title:
-        # Remover lixo comum de SEO/venda
+        # Remover lixo comum de SEO/venda (OBS: escapar o pipe | para não remover espaços)
         cleanups = [
-            r" - .*?$", r" | .*?$", r" lojas? oficial$", r" frete grátis.*$",
-            r" cupom de desconto.*$", r" compre aqui.*$", r" melhor preço.*$"
+            r" - .*?$", r" \| .*?$", r" lojas? oficial$", r" frete grátis.*$",
+            r" cupom de desconto.*$", r" compre aqui.*$", r" melhor preço.*$",
+            r" parcelas? sem juros.*$", r" até \d+x.*$"
         ]
         for pattern in cleanups:
             title = re.sub(pattern, "", title, flags=re.I).strip()
 
-        # Se for muito longo, focar no essencial (Marca + Objeto)
-        if len(title) > 70:
-            title = title[:67] + "..."
+        # Se for muito longo, resumir mantendo apenas as primeiras palavras (Marca + Modelo)
+        if len(title) > 60:
+            words = title.split()
+            title = " ".join(words[:10]) # Primeiras 10 palavras ou 60 chars
+            if len(title) > 57: title = title[:57] + "..."
 
-        # Title Case amigável
+        # Title Case amigável e limpeza de espaços extras
+        title = re.sub(r'\s+', ' ', title).strip()
         if title.isupper() or title.islower():
             title = title.title()
 
