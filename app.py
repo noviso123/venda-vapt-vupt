@@ -8,6 +8,8 @@ from supabase import create_client, Client
 from pix_utils import PixGenerator
 import uuid
 import urllib3
+import httpx
+from supabase.lib.client_options import ClientOptions
 
 # Desabilitar avisos de SSL se necessário para scrapers em sites com cert incompleto
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -21,10 +23,12 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 7  # 7 dias em segundo
 app.config['SESSION_PERMANENT'] = True
 app.config['SESSION_TYPE'] = 'filesystem' # Garantir persistência local se possível
 
-# Configuração Supabase
+# Configuração Supabase com Bypass de SSL para httpx (Postgrest/Storage)
 url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(url, key)
+
+# Injetar verify=False nas opções do cliente
+supabase: Client = create_client(url, key, options=ClientOptions(verify=False))
 
 # --- AUTO SETUP DO BANCO/SCHEMA ---
 def init_db():
