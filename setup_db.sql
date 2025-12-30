@@ -8,24 +8,19 @@ CREATE TABLE IF NOT EXISTS stores (
     primary_color TEXT DEFAULT '#3B82F6',
     secondary_color TEXT DEFAULT '#10B981',
     is_active BOOLEAN DEFAULT true,
-
-    -- Credenciais de Acesso
-    admin_user TEXT DEFAULT 'admin',
-    admin_password TEXT DEFAULT 'vaptvupt123',
-
-    -- Pagamento (PIX)
-    pix_key TEXT,
-    pix_name TEXT,
-    pix_city TEXT DEFAULT 'SAO PAULO',
-
-    -- Logística (Uber Direct)
-    address_street TEXT,
-    address_number TEXT,
-    address_city TEXT,
-    address_state TEXT,
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- GARANTIR COLUNAS NOVAS (Importante para quem já tinha a tabela antiga)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_user TEXT DEFAULT 'admin';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_password TEXT DEFAULT 'vaptvupt123';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_key TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_name TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_city TEXT DEFAULT 'SAO PAULO';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_street TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_city TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_state TEXT;
 
 -- 2. TABELA DE PRODUTOS
 CREATE TABLE IF NOT EXISTS products (
@@ -79,3 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id);
 INSERT INTO stores (slug, name, whatsapp)
 SELECT 'default', 'Venda Vapt Vupt', '5511999999999'
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE slug = 'default');
+
+-- Atualizar caso já exista mas esteja sem login
+UPDATE stores SET admin_user = 'admin', admin_password = 'vaptvupt123'
+WHERE slug = 'default' AND (admin_user IS NULL OR admin_user = '');
