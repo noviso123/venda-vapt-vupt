@@ -106,10 +106,10 @@
                 </div>
                 <div>
                     <input type="hidden" name="extra_images" id="p_extra_images">
-                    <label class="block text-sm font-bold mb-2 text-emerald-600">Link Externo (Opcional -
+                    <label class="block text-sm font-bold mb-2 text-sky-600">Link Externo (Opcional -
                         Afiliado/Dropshipping)</label>
                     <input type="text" name="external_url" id="p_ext" placeholder="https://..."
-                        class="w-full px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50/10 placeholder:text-emerald-300">
+                        class="w-full px-4 py-3 rounded-xl border border-sky-200 bg-sky-50/10 placeholder:text-sky-300">
                     <p class="text-[10px] text-slate-400 mt-1">Se preenchido, o botão no site direcionará o cliente para
                         este link.</p>
                 </div>
@@ -171,7 +171,7 @@
                     <p class="text-sm font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</p>
                     {% if product.external_url %}
                     <span
-                        class="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">LINK
+                        class="text-[9px] font-black bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full uppercase">LINK
                         EXTERNO</span>
                     {% endif %}
                 </div>
@@ -185,7 +185,7 @@
                     <div class="text-center">
                         <span class="text-[9px] font-black uppercase text-slate-400 block mb-1">Qtd</span>
                         <span
-                            class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-emerald-500{% endif %} font-black text-xl">
+                            class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-sky-500{% endif %} font-black text-xl">
                             {{ product.stock_quantity }}
                         </span>
                     </div>
@@ -245,31 +245,31 @@
                     </div>
                 </div>
 
-                <div class="space-y-6 bg-emerald-50/20 p-6 rounded-3xl border border-emerald-100">
-                    <h4 class="text-sm font-black text-emerald-600 uppercase tracking-widest">Configurações Financeiras
+                <div class="space-y-6 bg-sky-50/20 p-6 rounded-3xl border border-sky-100">
+                    <h4 class="text-sm font-black text-sky-600 uppercase tracking-widest">Configurações Financeiras
                         (PIX)</h4>
                     <div>
                         <label class="block text-sm font-bold mb-2">Sua Chave PIX (E-mail, CPF, Tel ou
                             Aleatória)</label>
                         <input type="text" name="pix_key" value="{{ store.pix_key if store else '' }}" required
                             placeholder="chave@pix.com"
-                            class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                            class="w-full px-4 py-3 rounded-xl border border-sky-200 focus:border-sky-500 outline-none">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-bold mb-2">Nome do Titular</label>
                             <input type="text" name="pix_name" value="{{ store.pix_name if store else '' }}" required
                                 placeholder="Ex: João da Silva"
-                                class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                                class="w-full px-4 py-3 rounded-xl border border-sky-200 focus:border-sky-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-sm font-bold mb-2">Cidade Base</label>
                             <input type="text" name="pix_city" value="{{ store.pix_city if store else '' }}" required
                                 placeholder="Ex: São Paulo"
-                                class="w-full px-4 py-3 rounded-xl border border-emerald-200 focus:border-emerald-500 outline-none">
+                                class="w-full px-4 py-3 rounded-xl border border-sky-200 focus:border-sky-500 outline-none">
                         </div>
                     </div>
-                    <p class="text-[10px] text-emerald-600 font-bold italic">Estes dados são usados para gerar o QR Code
+                    <p class="text-[10px] text-sky-600 font-bold italic">Estes dados são usados para gerar o QR Code
                         de pagamento automático para o cliente.</p>
                 </div>
             </div>
