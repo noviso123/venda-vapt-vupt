@@ -16,6 +16,12 @@
 
         <form action="/{{ slug }}/login" method="POST" class="space-y-6">
             <div>
+                <label class="block text-sm font-bold mb-2 text-slate-700">Usuário Administrativo</label>
+                <input type="text" name="username" required
+                    class="w-full px-6 py-4 rounded-2xl border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                    placeholder="Ex: admin">
+            </div>
+            <div>
                 <label class="block text-sm font-bold mb-2 text-slate-700">Senha Administrativa</label>
                 <input type="password" name="password" required
                     class="w-full px-6 py-4 rounded-2xl border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
@@ -29,7 +35,8 @@
         </form>
 
         <div class="mt-8 text-center text-sm text-slate-400">
-            Senha padrão: <span class="font-mono text-slate-600">vaptvupt123</span>
+            Acesso padrão: <span class="font-mono text-slate-600">admin</span> / <span
+                class="font-mono text-slate-600">vaptvupt123</span>
         </div>
     </div>
 </div>

@@ -177,14 +177,15 @@ def order_confirmation(order_id):
 @app.route('/<slug>/login', methods=['GET', 'POST'])
 def admin_login(slug):
     if request.method == 'POST':
+        username = request.form.get('username')
         password = request.form.get('password')
         store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
         if store_res.data:
             store = store_res.data[0]
-            if store.get('admin_password') == password:
+            if store.get('admin_user') == username and store.get('admin_password') == password:
                 session['admin_store_slug'] = slug
                 return redirect(url_for('admin_dashboard', slug=slug))
-        return render_template('login.html', slug=slug, error="Senha incorreta")
+        return render_template('login.html', slug=slug, error="Usuário ou Senha incorretos")
 
     return render_template('login.html', slug=slug)
 
@@ -286,6 +287,7 @@ def admin_update_settings(slug):
         "address_number": request.form.get('address_number'),
         "address_city": request.form.get('address_city'),
         "address_state": request.form.get('address_state'),
+        "admin_user": request.form.get('admin_user'),
         "admin_password": request.form.get('admin_password')
     }
     supabase.table('stores').update(store_data).eq('slug', slug).execute()
