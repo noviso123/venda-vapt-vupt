@@ -338,12 +338,14 @@
             document.getElementById( 'p_img' ).value = data.image || '';
             document.getElementById( 'p_ext' ).value = url;
             document.getElementById( 'p_stock' ).value = data.stock || 1;
-
-            document.getElementById( 'p_stock' ).value = data.stock || 1;
+            document.getElementById( 'p_price' ).value = data.price || '';
 
             let msg = 'Dados importados!';
-            if ( data.images && data.images.length > 1 ) msg += ` Encontradas ${ data.images.length } imagens. Salve o produto para gerenciá-las.`;
-            alert( msg );
+            if ( data.images && data.images.length > 1 ) msg += ` Encontradas ${ data.images.length } imagens.`;
+            if ( data.price ) msg += ` Preço detectado: R$ ${ data.price }`;
+            if ( data.video ) msg += ` Vídeo detectado.`;
+
+            alert( msg + ' Salve o produto para confirmar.' );
         } catch ( e )
         {
             alert( 'Erro ao importar: ' + e.message );

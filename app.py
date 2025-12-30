@@ -391,47 +391,104 @@ def fetch_metadata():
         response = requests.get(url_to_fetch, headers=headers, timeout=15)
         html = response.text
 
-        def find_meta(patterns, text):
-            for pattern in patterns:
-                match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-                if match: return match.group(1).strip()
-            return ""
+        data = {
+            "title": "",
+            "description": "",
+            "price": 0,
+            "images": [],
+            "video": "",
+            "stock": 1
+        }
 
-        # Padrões para Título
-        title = find_meta([
-            r'property=["\']og:title["\'] content=["\'](.*?)["\']',
-            r'name=["\']twitter:title["\'] content=["\'](.*?)["\']',
-            r'<title>(.*?)</title>'
-        ], html)
+        # 1. Tentar extrair via JSON-LD (Dados Estruturados - Melhor Precisão)
+        try:
+            json_ld_matches = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+            for json_str in json_ld_matches:
+                try:
+                    import json
+                    ld = json.loads(json_str)
+                    if isinstance(ld, dict):
+                        # Se for Product ou conter Product
+                        target = ld if ld.get('@type') == 'Product' else None
+                        if not target and '@graph' in ld:
+                            for item in ld['@graph']:
+                                if item.get('@type') == 'Product':
+                                    target = item
+                                    break
 
-        # Padrões para Imagem
-        image = find_meta([
-            r'property=["\']og:image["\'] content=["\'](.*?)["\']',
-            r'name=["\']twitter:image["\'] content=["\'](.*?)["\']',
-            r'link rel=["\']image_src["\'] href=["\'](.*?)["\']'
-        ], html)
+                        if target:
+                            data["title"] = target.get('name', data["title"])
+                            data["description"] = target.get('description', data["description"])
 
-        # Padrões para Descrição
-        description = find_meta([
-            r'property=["\']og:description["\'] content=["\'](.*?)["\']',
-            r'name=["\']twitter:description["\'] content=["\'](.*?)["\']',
-            r'name=["\']description["\'] content=["\'](.*?)["\']'
-        ], html)
+                            # Imagens (pode ser string ou lista)
+                            imgs = target.get('image')
+                            if isinstance(imgs, str): data["images"].append(imgs)
+                            elif isinstance(imgs, list): data["images"].extend(imgs)
 
-        # Padrão para Vídeo (Opcional)
-        video = find_meta([
-            r'property=["\']og:video:url["\'] content=["\'](.*?)["\']',
-            r'property=["\']og:video["\'] content=["\'](.*?)["\']'
-        ], html)
+                            # Ofertas (Preço)
+                            offers = target.get('offers')
+                            if isinstance(offers, dict):
+                                data["price"] = float(offers.get('price', 0))
+                            elif isinstance(offers, list) and len(offers) > 0:
+                                data["price"] = float(offers[0].get('price', 0))
+
+                            break # Encontrou produto, para
+                except: pass
+        except: pass
+
+        # 2. Fallbacks via Meta Tags e Regex (se JSON-LD falhar ou estiver incompleto)
+
+        if not data["title"]:
+            match = re.search(r'property=["\']og:title["\'] content=["\'](.*?)["\']', html) or re.search(r'<title>(.*?)</title>', html)
+            if match: data["title"] = match.group(1)
+
+        if not data["description"]:
+             match = re.search(r'property=["\']og:description["\'] content=["\'](.*?)["\']', html)
+             if match: data["description"] = match.group(1)
+
+        if not data["price"]:
+            # Tentar meta tags de preço
+            match = re.search(r'property=["\']product:price:amount["\'] content=["\'](.*?)["\']', html) or \
+                    re.search(r'property=["\']og:price:amount["\'] content=["\'](.*?)["\']', html)
+            if match:
+                try: data["price"] = float(match.group(1))
+                except: pass
+
+            # Tentar regex no corpo (R$ XX,XX)
+            if not data["price"]:
+                prices = re.findall(r'R\$\s?(\d+[.,]?\d*)', html)
+                if prices:
+                    try: data["price"] = float(prices[0].replace('.', '').replace(',', '.'))
+                    except: pass
+
+        # Buscar Imagens adicionais (OpenGraph, Twitter, Links diretos)
+        if not data["images"]:
+            og_img = re.search(r'property=["\']og:image["\'] content=["\'](.*?)["\']', html)
+            if og_img: data["images"].append(og_img.group(1))
+
+            # Buscar todas as imagens jpg/png grandes (heurística simples) que não sejam ícones
+            matches = re.findall(r'(https?://[^"\s]+\.(?:jpg|jpeg|png|webp))', html, re.IGNORECASE)
+            # Filtrar e desduplicar (limite de 5 para não poluir)
+            data["images"].extend([m for m in matches if 'icon' not in m and 'logo' not in m][:5])
+
+        # Deduplicar imagens
+        data["images"] = list(dict.fromkeys(data["images"]))
+
+        # Video
+        if not data["video"]:
+            vid = re.search(r'property=["\']og:video["\'] content=["\'](.*?)["\']', html)
+            if vid: data["video"] = vid.group(1)
 
         return jsonify({
-            "title": title,
-            "image": image,
-            "images": [image] if image else [],
-            "description": description,
-            "video": video,
+            "title": data["title"],
+            "description": data["description"],
+            "image": data["images"][0] if data["images"] else "",
+            "images": data["images"],
+            "video": data["video"],
+            "price": data["price"],
             "stock": 1
         })
+
     except Exception as e:
         app.logger.error(f"Erro Scraper: {e}")
         return jsonify({"error": str(e)}), 500
