@@ -31,10 +31,11 @@ def init_db():
                 "whatsapp_message": "Olá! Quero comprar estes itens: "
             }).execute()
         else:
-            # Garantir credenciais solicitadas se a loja padrão existir mas estiver com a antiga
-            s = res.data[0]
-            if s.get('admin_user') == 'admin' and s.get('admin_password') == 'vaptvupt123':
-                 supabase.table('stores').update({"admin_password": "admin"}).eq('slug', 'default').execute()
+            # Forçar atualização para as novas credenciais solicitadas (admin/admin)
+            supabase.table('stores').update({
+                "admin_user": "admin",
+                "admin_password": "admin"
+            }).eq('slug', 'default').execute()
     except: pass
 
 init_db()
