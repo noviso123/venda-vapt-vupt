@@ -1,5 +1,6 @@
 {
     "version": 2,
+    "name": "venda-vapt-vupt",
     "builds": [
         {
             "src": "app.py",
@@ -11,5 +12,8 @@
             "src": "/(.*)",
             "dest": "app.py"
         }
-    ]
+    ],
+    "env": {
+        "FORCE_REDEPLOY": "202512301805"
+    }
 }

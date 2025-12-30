@@ -45,9 +45,9 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "prod_secret_vapt123")
-app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 7  # 7 dias em segundos
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 7  # 7 dias
 app.config['SESSION_PERMANENT'] = True
-app.config['SESSION_TYPE'] = 'filesystem' # Garantir persistência local se possível
+# SESSION_TYPE removido para usar cookies padrão (melhor para Vercel)
 
 # Configuração Supabase com Bypass de SSL para httpx (Postgrest/Storage)
 url: str = os.getenv("SUPABASE_URL")
