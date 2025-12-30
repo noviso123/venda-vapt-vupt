@@ -68,33 +68,36 @@
             </div>
         </div>
 
-        <h3 class="text-xl font-bold text-slate-800 mb-2 truncate" title="{{ product.name }}">{{ product.name }}</h3>
-        <p class="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{{ product.description }}</p>
+        <h3 class="text-xl font-bold text-slate-800 mb-2 truncate" title="{{ product.get('name', '') }}">
+            {{ product.get('name', 'Produto') }}</h3>
+        <p class="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{{ product.get('description', '') }}</p>
 
         <div class="space-y-4">
             <div class="flex items-center justify-between">
-                <span class="text-2xl font-black text-primary">R$ {{ "%.2f"|format(product.price) }}</span>
+                <span class="text-2xl font-black text-primary">R$ {{ "%.2f"|format(product.price or 0) }}</span>
 
-                {% if not product.external_url and product.stock_quantity > 0 %}
+                {% set p_id = product.id if product.id else loop.index0 %}
+                {% set stock = product.get('stock_quantity', 0) %}
+                {% if not product.get('external_url') and stock > 0 %}
                 <!-- Seletor de Qtd (Mobile Friendly) -->
                 <div class="flex items-center bg-slate-100 rounded-xl p-1 gap-3">
-                    <button onclick="changeQty('{{ product.id }}', -1)"
+                    <button onclick="changeQty('{{ p_id }}', -1)"
                         class="w-8 h-8 flex items-center justify-center text-slate-500 font-bold hover:bg-white rounded-lg transition-all">-</button>
-                    <span id="qty-{{ product.id }}" class="text-sm font-black text-slate-800 w-4 text-center">1</span>
-                    <button onclick="changeQty('{{ product.id }}', 1)"
+                    <span id="qty-{{ p_id }}" class="text-sm font-black text-slate-800 w-4 text-center">1</span>
+                    <button onclick="changeQty('{{ p_id }}', 1)"
                         class="w-8 h-8 flex items-center justify-center text-slate-500 font-bold hover:bg-white rounded-lg transition-all">+</button>
                 </div>
                 {% endif %}
             </div>
 
-            {% if product.external_url %}
+            {% if product.get('external_url') %}
             <a href="{{ product.external_url }}" target="_blank"
                 class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black text-center block shadow-xl hover:bg-slate-900 transition-all active:scale-95 uppercase tracking-wider text-sm">
                 COMPRAR AGORA NO SITE
             </a>
-            {% elif product.stock_quantity > 0 %}
-            <button id="btn-{{ product.id }}" hx-post="/carrinho/adicionar"
-                hx-vals='js:{"product_id": "{{ product.id }}", "quantity": document.getElementById("qty-{{ product.id }}").innerText}'
+            {% elif stock > 0 %}
+            <button id="btn-{{ p_id }}" hx-post="/carrinho/adicionar"
+                hx-vals='js:{"product_id": "{{ p_id }}", "quantity": document.getElementById("qty-{{ p_id }}") ? document.getElementById("qty-{{ p_id }}").innerText : 1}'
                 hx-target="#cart-indicator"
                 class="w-full py-4 btn-primary text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-wider text-sm flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
