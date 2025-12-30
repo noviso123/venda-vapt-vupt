@@ -9,7 +9,18 @@ from pix_utils import PixGenerator
 import uuid
 import urllib3
 import httpx
+import ssl
 from supabase.lib.client_options import ClientOptions
+
+# --- SOLUÇÃO DEFINITIVA SSL (Monkeypatch Global) ---
+# Isso força o Python a ignorar a verificação de certificados em todas as bibliotecas (httpx, requests, etc.)
+# Essencial para ambientes com proxys/firewalls que interceptam tráfego HTTPS.
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 # Desabilitar avisos de SSL se necessário para scrapers em sites com cert incompleto
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -462,32 +473,38 @@ def admin_dashboard():
 def update_settings():
     if not check_auth(): return redirect(url_for('admin_login'))
 
-    # O admin_user deve ser sempre 'admin' para vendedores, conforme solicitado
-    store_data = {
-        "name": request.form.get('name'),
-        "whatsapp": request.form.get('whatsapp'),
-        "whatsapp_message": request.form.get('whatsapp_message'),
-        "primary_color": request.form.get('primary_color'),
-        "secondary_color": request.form.get('secondary_color'),
-        "logo_url": request.form.get('logo_url'),
-        "pix_key": request.form.get('pix_key'),
-        "pix_name": request.form.get('pix_name'),
-        "pix_city": request.form.get('pix_city'),
-        "admin_user": "admin"  # FIXO: Admin sempre será admin
-    }
+    try:
+        # O admin_user deve ser sempre 'admin' para vendedores, conforme solicitado
+        store_data = {
+            "name": request.form.get('name'),
+            "whatsapp": request.form.get('whatsapp'),
+            "whatsapp_message": request.form.get('whatsapp_message'),
+            "primary_color": request.form.get('primary_color'),
+            "secondary_color": request.form.get('secondary_color'),
+            "logo_url": request.form.get('logo_url'),
+            "pix_key": request.form.get('pix_key'),
+            "pix_name": request.form.get('pix_name'),
+            "pix_city": request.form.get('pix_city'),
+            "admin_user": "admin"  # FIXO: Admin sempre será admin
+        }
 
-    # Só atualiza a senha se for fornecida
-    if request.form.get('admin_password'):
-        store_data["admin_password"] = request.form.get('admin_password')
-    file = request.files.get('file')
-    if file and file.filename:
-        try:
-            filename = f"logo_{uuid.uuid4()}.{file.filename.split('.')[-1]}"
-            supabase.storage.from_('product-images').upload(filename, file.read())
-            store_data["logo_url"] = supabase.storage.from_('product-images').get_public_url(filename)
-        except: pass
-    supabase.table('stores').upsert(dict(store_data, slug="default")).execute()
-    return redirect(url_for('admin_dashboard'))
+        # Só atualiza a senha se for fornecida
+        if request.form.get('admin_password'):
+            store_data["admin_password"] = request.form.get('admin_password')
+        file = request.files.get('file')
+        if file and file.filename:
+            try:
+                filename = f"logo_{uuid.uuid4()}.{file.filename.split('.')[-1]}"
+                supabase.storage.from_('product-images').upload(filename, file.read())
+                store_data["logo_url"] = supabase.storage.from_('product-images').get_public_url(filename)
+            except: pass
+
+        # Upsert com proteção de erro
+        supabase.table('stores').upsert(dict(store_data, slug="default")).execute()
+        return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        app.logger.error(f"Erro ao salvar configurações: {e}")
+        return render_template('error.html', error=f"Erro ao salvar: {str(e)}", store=get_store())
 
 @app.route('/vendedor/produto/novo', methods=['POST'])
 def admin_add_product():
