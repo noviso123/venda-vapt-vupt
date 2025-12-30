@@ -16,6 +16,12 @@ url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
+# --- HELPERS ---
+def check_auth(slug):
+    if 'admin_store_slug' not in session or session['admin_store_slug'] != slug:
+        return False
+    return True
+
 # --- ROTAS PRINCIPAIS ---
 
 @app.route('/')
@@ -168,13 +174,28 @@ def order_confirmation(order_id):
 
 # --- MARKETING E ADMIN ---
 
-@app.route('/bio/<slug>')
-def instagram_bio(slug):
-    # Redireciona para a loja com tracking (opcional)
-    return redirect(url_for('store_view', slug=slug, src='instagram_bio'))
+@app.route('/<slug>/login', methods=['GET', 'POST'])
+def admin_login(slug):
+    if request.method == 'POST':
+        password = request.form.get('password')
+        store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
+        if store_res.data:
+            store = store_res.data[0]
+            if store.get('admin_password') == password:
+                session['admin_store_slug'] = slug
+                return redirect(url_for('admin_dashboard', slug=slug))
+        return render_template('login.html', slug=slug, error="Senha incorreta")
 
-@app.route('/admin/<slug>')
+    return render_template('login.html', slug=slug)
+
+@app.route('/<slug>/logout')
+def admin_logout(slug):
+    session.pop('admin_store_slug', None)
+    return redirect(url_for('store_view', slug=slug))
+
+@app.route('/<slug>/vendedor')
 def admin_dashboard(slug):
+    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
     # Buscar detalhes da loja
     store_res = supabase.table('stores').select("*").eq('slug', slug).execute()
     if not store_res.data: return "Acesso negado", 403
@@ -190,8 +211,9 @@ def admin_dashboard(slug):
 
     return render_template('admin.html', store=store, orders=orders, products=products)
 
-@app.route('/admin/<slug>/produto/novo', methods=['POST'])
+@app.route('/<slug>/vendedor/produto/novo', methods=['POST'])
 def admin_add_product(slug):
+    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
     store_res = supabase.table('stores').select("id").eq('slug', slug).execute()
     store_id = store_res.data[0]['id']
 
@@ -225,20 +247,23 @@ def admin_add_product(slug):
     supabase.table('products').insert(product_data).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
 
-@app.route('/admin/<slug>/produto/deletar/<product_id>')
+@app.route('/<slug>/vendedor/produto/deletar/<product_id>')
 def admin_delete_product(slug, product_id):
+    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
     supabase.table('products').delete().eq('id', product_id).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
 
-@app.route('/admin/<slug>/pedido/status', methods=['POST'])
+@app.route('/<slug>/vendedor/pedido/status', methods=['POST'])
 def admin_update_order_status(slug):
+    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
     order_id = request.form.get('order_id')
     new_status = request.form.get('status')
     supabase.table('orders').update({"status": new_status}).eq('id', order_id).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
 
-@app.route('/admin/<slug>/configuracoes', methods=['POST'])
+@app.route('/<slug>/vendedor/configuracoes', methods=['POST'])
 def admin_update_settings(slug):
+    if not check_auth(slug): return redirect(url_for('admin_login', slug=slug))
     # Lógica de Upload de Logo
     logo_url = request.form.get('logo_url')
     file = request.files.get('file')
@@ -260,7 +285,8 @@ def admin_update_settings(slug):
         "address_street": request.form.get('address_street'),
         "address_number": request.form.get('address_number'),
         "address_city": request.form.get('address_city'),
-        "address_state": request.form.get('address_state')
+        "address_state": request.form.get('address_state'),
+        "admin_password": request.form.get('admin_password')
     }
     supabase.table('stores').update(store_data).eq('slug', slug).execute()
     return redirect(url_for('admin_dashboard', slug=slug))
