@@ -32,13 +32,27 @@ def init_db():
                 "admin_password": "admin",
                 "whatsapp_message": "Olá! Quero comprar estes itens: "
             }).execute()
-        else:
-            # Forçar atualização para as novas credenciais solicitadas (admin/admin)
-            supabase.table('stores').update({
-                "admin_user": "admin",
-                "admin_password": "admin"
-            }).eq('slug', 'default').execute()
-    except: pass
+        # Sincronização agressiva de Schema
+        # Tabela stores
+        try:
+            supabase.table('stores').update({"admin_user": "admin"}).eq('slug', 'default').execute()
+        except: pass
+
+        # Tabela products (Novas colunas)
+        try:
+            # Tentar adicionar external_url
+            supabase.rpc('add_column_if_not_exists', {
+                't_name': 'products', 'c_name': 'external_url', 'c_type': 'TEXT'
+            }).execute()
+        except: pass
+        try:
+            # Tentar adicionar is_active
+            supabase.rpc('add_column_if_not_exists', {
+                't_name': 'products', 'c_name': 'is_active', 'c_type': 'BOOLEAN DEFAULT TRUE'
+            }).execute()
+        except: pass
+    except Exception as e:
+        print(f"Erro no init_db: {e}")
 
 init_db()
 
@@ -103,11 +117,21 @@ def index():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('error.html', error="Página não encontrada", store=get_store()), 404
+    st = None
+    try: st = get_store()
+    except: pass
+    return render_template('error.html', error="Página não encontrada", store=st), 404
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('error.html', error="Erro interno", store=get_store()), 500
+    st = None
+    try: st = get_store()
+    except: pass
+    # Log detalhado do erro para diagnóstico via Vercel Logs
+    app.logger.error(f"Erro Crítico 500: {str(e)}")
+    import traceback
+    app.logger.error(traceback.format_exc())
+    return render_template('error.html', error="Erro de sistema", store=st), 500
 
 @app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
