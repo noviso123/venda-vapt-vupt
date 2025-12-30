@@ -42,14 +42,20 @@ def init_db():
             {'t_name': 'products', 'c_name': 'clicks_count', 'c_type': 'INTEGER DEFAULT 0'},
             {'t_name': 'stores', 'c_name': 'pix_key', 'c_type': 'TEXT'},
             {'t_name': 'stores', 'c_name': 'pix_name', 'c_type': 'TEXT'},
-            {'t_name': 'stores', 'c_name': 'pix_city', 'c_type': 'TEXT'}
+            {'t_name': 'stores', 'c_name': 'pix_city', 'c_type': 'TEXT'},
+            {'t_name': 'stores', 'c_name': 'admin_user', 'c_type': 'TEXT DEFAULT \'admin\''},
+            {'t_name': 'stores', 'c_name': 'admin_password', 'c_type': 'TEXT DEFAULT \'admin\''},
+            {'t_name': 'customers', 'c_name': 'password', 'c_type': 'TEXT'}
         ]
         for col in rpc_cols:
             try: supabase.rpc('add_column_if_not_exists', col).execute()
             except: pass
 
-        # Forçar admin/admin
-        try: supabase.table('stores').update({"admin_user": "admin", "admin_password": "admin"}).eq('slug', 'default').execute()
+        # Forçar admin/admin no default se não existir
+        try:
+            check = supabase.table('stores').select("admin_user").eq('slug', 'default').execute()
+            if check.data and not check.data[0].get('admin_user'):
+                supabase.table('stores').update({"admin_user": "admin", "admin_password": "admin"}).eq('slug', 'default').execute()
         except: pass
     except Exception as e:
         print(f"Erro init_db: {e}")
@@ -64,7 +70,11 @@ def get_store():
         return res.data[0] if res.data else fallback
     except: return fallback
 
-def check_auth(): return 'is_admin' in session
+def check_auth():
+    return session.get('is_admin') or session.get('is_superadmin')
+
+def is_superadmin():
+    return session.get('is_superadmin', False)
 
 def generate_wa_link(phone, base_msg, cart_items=None, total=None):
     msg = base_msg
@@ -281,34 +291,43 @@ def order_confirmation(order_id):
 @app.route('/cadastro', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        street = request.form.get('street')
-        number = request.form.get('number')
-        complement = request.form.get('complement')
-        neighborhood = request.form.get('neighborhood')
-        city = request.form.get('city')
-        state = request.form.get('state')
-        cep = request.form.get('cep')
-        address_details = f"{street}, {number}"
-        if complement: address_details += f" - {complement}"
-        address_details += f", {neighborhood}, {city} - {state} (CEP: {cep})"
-
-        customer_data = {
-            "name": request.form.get('name'),
-            "email": request.form.get('email'),
-            "whatsapp": request.form.get('whatsapp'),
-            "password": request.form.get('password'),
-            "address_full": address_details
-        }
         try:
-            res = supabase.table('customers').insert(customer_data).execute()
+            # Limpeza básica e coleta de dados
+            form = {k: v.strip() for k, v in request.form.items()}
+
+            address_details = f"{form.get('street')}, {form.get('number')}"
+            if form.get('complement'): address_details += f" - {form.get('complement')}"
+            address_details += f", {form.get('neighborhood')}, {form.get('city')} - {form.get('state')} (CEP: {form.get('cep')})"
+
+            customer_data = {
+                "name": form.get('name'),
+                "email": form.get('email'),
+                "whatsapp": form.get('whatsapp'),
+                "password": form.get('password'),
+                "address_full": address_details
+            }
+
+            app.logger.info(f"Tentando cadastrar cliente: {customer_data['whatsapp']}")
+
+            # Usar upsert para evitar erro de UNIQUE no whatsapp, permitindo "atualizar" se já existir
+            res = supabase.table('customers').upsert(customer_data, on_conflict="whatsapp").execute()
+
             if res.data:
+                app.logger.info(f"Cliente cadastrado/atualizado com sucesso: {res.data[0]['id']}")
                 session.permanent = True
                 session['customer_id'] = res.data[0]['id']
                 session['customer_name'] = res.data[0]['name']
-                if session.get('cart'): return redirect(url_for('checkout'))
+
+                if session.get('cart'):
+                    return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
+            else:
+                app.logger.warning("Falha no insert: Nenhum dado retornado do Supabase.")
+                return render_template('register.html', error="Erro ao processar cadastro no servidor.")
+
         except Exception as e:
-            return render_template('register.html', error=f"Erro ao cadastrar: {e}")
+            app.logger.error(f"Erro fatal no Cadastro: {str(e)}")
+            return render_template('register.html', error=f"Erro ao cadastrar: {str(e)}")
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -318,18 +337,25 @@ def admin_login():
         password = request.form.get('password', '').strip()
         store = get_store()
 
-        # 1. Login Admin (Prioridade para admin/admin como solicitado)
+        # 1. Login Superadmin (Sistema / Suporte)
+        # Usando senha fixa do env ou default segura
+        super_pass = os.getenv("SUPERADMIN_PASSWORD", "vaptvupt@2024")
+        if login_id == 'superadmin' and password == super_pass:
+            session.permanent = True
+            session['is_superadmin'] = True
+            session['is_admin'] = True # Superadmin também é admin
+            return redirect(url_for('admin_dashboard'))
+
+        # 2. Login Admin da Loja (Vendedor)
+        # Sempre username 'admin'
+        if login_id == 'admin' and store and store.get('admin_password') == password:
+            session.permanent = True
+            session['is_admin'] = True
+            session['is_superadmin'] = False
+            return redirect(url_for('admin_dashboard'))
+
+        # 3. Login Cliente
         try:
-            # 1. Login Admin
-            is_god_mode = (login_id == 'admin' and password == 'admin')
-            is_store_admin = store and store.get('admin_user') == login_id and store.get('admin_password') == password
-
-            if is_god_mode or is_store_admin:
-                session.permanent = True
-                session['is_admin'] = True
-                return redirect(url_for('admin_dashboard'))
-
-            # 2. Login Cliente
             c_res = supabase.table('customers').select("*").eq('email', login_id).eq('password', password).execute()
             if not c_res.data:
                 c_res = supabase.table('customers').select("*").eq('whatsapp', login_id).eq('password', password).execute()
@@ -340,11 +366,9 @@ def admin_login():
                 session['customer_name'] = c_res.data[0]['name']
                 if session.get('cart'): return redirect(url_for('checkout'))
                 return redirect(url_for('customer_orders'))
+        except: pass
 
-            return render_template('login.html', error="Login ou senha incorretos")
-        except Exception as e:
-            app.logger.error(f"Erro Login: {e}")
-            return render_template('login.html', error=f"Erro interno no login: {str(e)}")
+        return render_template('login.html', error="Login ou senha incorretos")
     return render_template('login.html')
 
 @app.route('/meus-pedidos')
@@ -359,6 +383,7 @@ def customer_orders():
 @app.route('/logout')
 def admin_logout():
     session.pop('is_admin', None)
+    session.pop('is_superadmin', None)
     session.pop('customer_id', None)
     session.pop('customer_name', None)
     return redirect(url_for('index'))
@@ -366,6 +391,16 @@ def admin_logout():
 @app.route('/vendedor')
 def admin_dashboard():
     if not check_auth(): return redirect(url_for('admin_login'))
+
+    # Dashboard para Superadmin (Ver todas as lojas)
+    if is_superadmin():
+        try:
+            stores = supabase.table('stores').select("*").execute().data
+            return render_template('super_admin.html', stores=stores)
+        except Exception as e:
+            app.logger.error(f"Erro Carregar Super Panel: {e}")
+
+    # Dashboard para Vendedor (Sua própria loja)
     store = get_store()
     orders, products = [], []
     if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
@@ -378,6 +413,8 @@ def admin_dashboard():
 @app.route('/vendedor/configuracoes', methods=['POST'])
 def update_settings():
     if not check_auth(): return redirect(url_for('admin_login'))
+
+    # O admin_user deve ser sempre 'admin' para vendedores, conforme solicitado
     store_data = {
         "name": request.form.get('name'),
         "whatsapp": request.form.get('whatsapp'),
@@ -388,9 +425,12 @@ def update_settings():
         "pix_key": request.form.get('pix_key'),
         "pix_name": request.form.get('pix_name'),
         "pix_city": request.form.get('pix_city'),
-        "admin_user": request.form.get('admin_user', 'admin'),
-        "admin_password": request.form.get('admin_password', 'admin')
+        "admin_user": "admin"  # FIXO: Admin sempre será admin
     }
+
+    # Só atualiza a senha se for fornecida
+    if request.form.get('admin_password'):
+        store_data["admin_password"] = request.form.get('admin_password')
     file = request.files.get('file')
     if file and file.filename:
         try:
@@ -471,180 +511,130 @@ def fetch_metadata():
     if not url_to_fetch: return jsonify({"error": "no url"}), 400
 
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        from bs4 import BeautifulSoup
+        import requests
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         response = requests.get(url_to_fetch, headers=headers, timeout=15)
+        response.raise_for_status()
         html = response.text
+        soup = BeautifulSoup(html, 'lxml')
 
         data = {
             "title": "",
             "description": "",
-            "price": 0,
+            "price": 0.0,
             "images": [],
             "video": "",
             "stock": 1
         }
 
-        # 1. Tentar extrair via JSON-LD (Dados Estruturados - Melhor Precisão)
-        try:
-            json_ld_matches = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
-            for json_str in json_ld_matches:
-                try:
-                    import json
-                    ld = json.loads(json_str)
-                    if isinstance(ld, dict):
-                        # Se for Product ou conter Product
-                        target = ld if ld.get('@type') == 'Product' else None
-                        if not target and '@graph' in ld:
-                            for item in ld['@graph']:
-                                if item.get('@type') == 'Product':
-                                    target = item
-                                    break
+        # 1. Tentar JSON-LD (Product)
+        import json
+        for script in soup.find_all('script', type='application/ld+json'):
+            try:
+                ld = json.loads(script.string)
+                if isinstance(ld, list): ld = ld[0]
 
-                        if target:
-                            data["title"] = target.get('name', data["title"])
-                            data["description"] = target.get('description', data["description"])
+                target = None
+                if ld.get('@type') == 'Product': target = ld
+                elif '@graph' in ld:
+                    for item in ld['@graph']:
+                        if item.get('@type') == 'Product':
+                            target = item
+                            break
 
-                            # Imagens (pode ser string ou lista)
-                            imgs = target.get('image')
-                            if isinstance(imgs, str): data["images"].append(imgs)
-                            elif isinstance(imgs, list): data["images"].extend(imgs)
+                if target:
+                    data["title"] = target.get('name', '')
+                    data["description"] = target.get('description', '')
 
-                            # Ofertas (Preço)
-                            offers = target.get('offers')
-                            if isinstance(offers, dict):
-                                data["price"] = float(offers.get('price', 0))
-                            elif isinstance(offers, list) and len(offers) > 0:
-                                data["price"] = float(offers[0].get('price', 0))
+                    imgs = target.get('image')
+                    if isinstance(imgs, str): data["images"].append(imgs)
+                    elif isinstance(imgs, list): data["images"].extend(imgs)
 
-                            break # Encontrou produto, para
-                except: pass
-        except: pass
+                    offers = target.get('offers')
+                    if isinstance(offers, dict):
+                        data["price"] = float(offers.get('price', 0))
+                    elif isinstance(offers, list) and len(offers) > 0:
+                        data["price"] = float(offers[0].get('price', 0))
+                    break
+            except: pass
 
-        # 2. Fallbacks via Meta Tags e Regex (se JSON-LD falhar ou estiver incompleto)
-
+        # 2. Meta Tags Fallback
         if not data["title"]:
-            match = re.search(r'property=["\']og:title["\'] content=["\'](.*?)["\']', html) or re.search(r'<title>(.*?)</title>', html)
-            if match: data["title"] = match.group(1)
+            tag = soup.find('meta', property='og:title') or soup.find('meta', name='twitter:title') or soup.find('title')
+            data["title"] = tag.get('content') if tag and tag.name == 'meta' else (tag.text if tag else "")
 
         if not data["description"]:
-            # Tentar og:description
-            match = re.search(r'property=["\']og:description["\'] content=["\'](.*?)["\']', html, re.IGNORECASE)
-            if match:
-                data["description"] = match.group(1)
-
-            # Tentar meta description padrão
-            if not data["description"]:
-                match = re.search(r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']', html, re.IGNORECASE)
-                if match: data["description"] = match.group(1)
-
-            # Tentar twitter:description
-            if not data["description"]:
-                match = re.search(r'name=["\']twitter:description["\'] content=["\'](.*?)["\']', html, re.IGNORECASE)
-                if match: data["description"] = match.group(1)
-
-            # Tentar itemprop description
-            if not data["description"]:
-                match = re.search(r'itemprop=["\']description["\'][^>]*content=["\'](.*?)["\']', html, re.IGNORECASE)
-                if match: data["description"] = match.group(1)
-
-            # Tentar pegar do corpo - primeiro parágrafo grande
-            if not data["description"]:
-                match = re.search(r'<p[^>]*>([^<]{50,500})</p>', html)
-                if match: data["description"] = match.group(1).strip()
+            tag = soup.find('meta', property='og:description') or soup.find('meta', name='description') or soup.find('meta', name='twitter:description')
+            data["description"] = tag.get('content') if tag else ""
 
         if not data["price"]:
-            # Tentar meta tags de preço
-            match = re.search(r'property=["\']product:price:amount["\'] content=["\'](.*?)["\']', html) or \
-                    re.search(r'property=["\']og:price:amount["\'] content=["\'](.*?)["\']', html)
-            if match:
-                try: data["price"] = float(match.group(1))
+            price_tag = soup.find('meta', property='product:price:amount') or soup.find('meta', property='og:price:amount')
+            if price_tag:
+                try: data["price"] = float(price_tag.get('content'))
                 except: pass
-
-            # Tentar regex no corpo (R$ XX,XX)
-            if not data["price"]:
-                prices = re.findall(r'R\$\s?(\d+[.,]?\d*)', html)
-                if prices:
-                    try: data["price"] = float(prices[0].replace('.', '').replace(',', '.'))
+            else:
+                price_match = re.search(r'R\$\s?(\d+[.,]?\d*)', soup.get_text())
+                if price_match:
+                    try: data["price"] = float(price_match.group(1).replace('.', '').replace(',', '.'))
                     except: pass
 
-        # Buscar Imagens adicionais (OpenGraph, Twitter, Links diretos)
-        if not data["images"]:
-            og_img = re.search(r'property=["\']og:image["\'] content=["\'](.*?)["\']', html)
-            if og_img: data["images"].append(og_img.group(1))
+        # 3. EXTRAÇÃO DE IMAGENS
+        found_imgs = []
+        og_img = soup.find('meta', property='og:image')
+        if og_img: found_imgs.append(og_img.get('content'))
 
-            # Buscar todas as imagens jpg/png grandes (heurística simples) que não sejam ícones
-            matches = re.findall(r'(https?://[^"\s]+\.(?:jpg|jpeg|png|webp))', html, re.IGNORECASE)
-            # Filtrar e desduplicar (limite de 5 para não poluir)
-            data["images"].extend([m for m in matches if 'icon' not in m and 'logo' not in m][:5])
+        for img in soup.find_all('img', src=True):
+            src = img.get('src')
+            if not src.startswith('http'):
+                from urllib.parse import urljoin
+                src = urljoin(url_to_fetch, src)
 
-        # Deduplicar imagens
-        data["images"] = list(dict.fromkeys(data["images"]))
+            alt = img.get('alt', '').lower()
+            src_lower = src.lower()
+            if any(x in src_lower or x in alt for x in ['icon', 'logo', 'button', 'sprite', 'banner', 'pixel']):
+                continue
+            found_imgs.append(src)
 
-        # === LIMPEZA E NORMALIZAÇÃO DE DADOS (NOVO) ===
+        data["images"] = list(dict.fromkeys(found_imgs))
 
-        # 1. Limpar Título
+        # === LIMPEZA E NORMALIZAÇÃO ===
         if data["title"]:
-            # Remover sufixos comuns de lojas
-            suffixes = [
-                r" - .*?$", r" | .*?$", r" \.\.\.$",
-                r" - Compre Agora.*?$", r" - Loja Oficial",
-                r" Oficial$", r" \| Mercado Livre.*$"
-            ]
+            suffixes = [r" - .*?$", r" | .*?$", r" \.\.\.$", r" lojas?", r" oficial$", r" compre agora.*$"]
             for s in suffixes:
-                data["title"] = re.sub(s, "", data["title"]).strip()
-
-            # Capitalização de palavras (Title Case) se estiver tudo em grifo ou minúsculo
+                data["title"] = re.sub(s, "", data["title"], flags=re.I).strip()
             if data["title"].isupper() or data["title"].islower():
                 data["title"] = data["title"].title()
 
-        # 2. Normalizar Descrição
         if data["description"]:
-            # Remover excesso de espaços e quebras de linha
             data["description"] = re.sub(r'\s+', ' ', data["description"]).strip()
             if len(data["description"]) > 500:
                 data["description"] = data["description"][:497] + "..."
 
-        # 3. Normalizar Preço (Garantir 2 casas e valor numérico)
-        try:
-            if data["price"]:
-                data["price"] = round(float(data["price"]), 2)
-        except:
-            data["price"] = 0.0
+        data["price"] = round(float(data["price"] or 0), 2)
 
         # Video
-        if not data["video"]:
-            vid = re.search(r'property=["\']og:video["\'] content=["\'](.*?)["\']', html)
-            if vid: data["video"] = vid.group(1)
+        og_vid = soup.find('meta', property='og:video')
+        if og_vid: data["video"] = og_vid.get('content')
 
-        # === PIPELINE REAL DE IMPORTAÇÃO: BAIXAR E PERSISTIR IMAGENS ===
+        # === PERSISTÊNCIA NO STORAGE ===
         persisted_images = []
         main_image_persisted = ""
 
-        app.logger.info(f"Iniciando download de {len(data['images'])} imagens encontradas...")
-
-        for i, img_url in enumerate(data["images"][:5]):  # Limite de 5 imagens
+        for i, img_url in enumerate(data["images"][:5]):
             try:
-                app.logger.info(f"Baixando imagem {i+1}: {img_url[:50]}...")
                 persisted_url = download_and_persist_image(img_url, prefix=f"import_{uuid.uuid4().hex[:8]}")
-
                 if persisted_url:
                     persisted_images.append(persisted_url)
-                    if i == 0:
-                        main_image_persisted = persisted_url
-                    app.logger.info(f"✓ Imagem {i+1} persistida: {persisted_url[:50]}...")
+                    if i == 0: main_image_persisted = persisted_url
                 else:
-                    # Fallback: manter URL original se download falhar
                     persisted_images.append(img_url)
-                    if i == 0:
-                        main_image_persisted = img_url
-                    app.logger.warning(f"✗ Imagem {i+1} não baixada, usando URL original")
-            except Exception as img_err:
-                app.logger.error(f"Erro ao baixar imagem {i+1}: {img_err}")
-                persisted_images.append(img_url)  # Fallback
-                if i == 0:
-                    main_image_persisted = img_url
-
-        app.logger.info(f"Importação concluída: {len(persisted_images)} imagens processadas")
+                    if i == 0: main_image_persisted = img_url
+            except:
+                persisted_images.append(img_url)
 
         return jsonify({
             "title": data["title"],
@@ -654,7 +644,7 @@ def fetch_metadata():
             "video": data["video"],
             "price": data["price"],
             "stock": 1,
-            "images_persisted": True  # Flag para frontend saber que imagens já estão salvas
+            "images_persisted": True
         })
 
     except Exception as e:

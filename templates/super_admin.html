@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4">
+    <div class="flex items-center justify-between mb-10">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900">Painel Superior</h1>
+            <p class="text-slate-500">Gestão global do ecossistema VAPT VUPT</p>
+        </div>
+        <div class="flex gap-4">
+            <span class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full font-bold text-sm">Super Admin</span>
+            <a href="/logout" class="btn btn-secondary btn-sm">Sair</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="card">
+            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Total de Lojas</h3>
+            <p class="text-3xl font-black text-slate-800">{{ stores|length }}</p>
+        </div>
+        <div class="card">
+            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Pedidos Globais</h3>
+            <p class="text-3xl font-black text-slate-800">Buscando...</p>
+        </div>
+        <div class="card">
+            <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Faturamento Total</h3>
+            <p class="text-3xl font-black text-slate-800">R$ ---</p>
+        </div>
+    </div>
+
+    <!-- Lista de Lojas -->
+    <div class="card">
+        <div class="card-header flex justify-between items-center">
+            <h2 class="text-xl font-bold">Lojas Registradas</h2>
+            <button class="btn btn-primary btn-sm">+ Criar Nova Loja</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-slate-400 text-sm uppercase">
+                        <th class="py-4 font-bold">ID / Slug</th>
+                        <th class="py-4 font-bold">Nome da Loja</th>
+                        <th class="py-4 font-bold">Admin User</th>
+                        <th class="py-4 font-bold">Senha (Admin)</th>
+                        <th class="py-4 font-bold">Status</th>
+                        <th class="py-4 font-bold text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for s in stores %}
+                    <tr class="group hover:bg-slate-50 transition-all">
+                        <td class="py-4">
+                            <span class="text-xs font-mono text-slate-400">{{ s.id[:8] }}...</span><br>
+                            <span class="font-bold text-primary">{{ s.slug }}</span>
+                        </td>
+                        <td class="py-4">
+                            <div class="flex items-center gap-3">
+                                {% if s.logo_url %}
+                                <img src="{{ s.logo_url }}" class="w-8 h-8 rounded-lg object-cover">
+                                {% endif %}
+                                <span class="font-bold text-slate-800">{{ s.name }}</span>
+                            </div>
+                        </td>
+                        <td class="py-4 text-slate-600 font-mono">{{ s.admin_user or 'admin' }}</td>
+                        <td class="py-4 text-slate-600 font-mono">{{ s.admin_password or 'admin' }}</td>
+                        <td class="py-4">
+                            {% if s.is_active %}<span class="text-success text-xs font-bold">Ativo</span>
+                            {% else %}<span class="text-danger text-xs font-bold">Inativo</span>{% endif %}
+                        </td>
+                        <td class="py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                <a href="/vendedor" class="btn btn-secondary btn-sm"
+                                    title="Acessar como admin">Espelhar</a>
+                                <button class="btn btn-ghost btn-sm text-danger">Bloquear</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-slate-400">Nenhuma loja encontrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
