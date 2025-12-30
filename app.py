@@ -248,6 +248,7 @@ def register():
         try:
             res = supabase.table('customers').insert(customer_data).execute()
             if res.data:
+                session.permanent = True
                 session['customer_id'] = res.data[0]['id']
                 session['customer_name'] = res.data[0]['name']
                 if session.get('cart'): return redirect(url_for('checkout'))
@@ -270,6 +271,7 @@ def admin_login():
             is_store_admin = store and store.get('admin_user') == login_id and store.get('admin_password') == password
 
             if is_god_mode or is_store_admin:
+                session.permanent = True
                 session['is_admin'] = True
                 return redirect(url_for('admin_dashboard'))
 
@@ -279,6 +281,7 @@ def admin_login():
                 c_res = supabase.table('customers').select("*").eq('whatsapp', login_id).eq('password', password).execute()
 
             if c_res.data:
+                session.permanent = True
                 session['customer_id'] = c_res.data[0]['id']
                 session['customer_name'] = c_res.data[0]['name']
                 if session.get('cart'): return redirect(url_for('checkout'))
