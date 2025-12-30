@@ -662,11 +662,11 @@ def fetch_metadata():
 
         # 2. Meta Tags Fallback & Imagens
         if not data["title"]:
-            tag = soup.find('meta', property='og:title') or soup.find('meta', name='twitter:title') or soup.find('title')
+            tag = soup.find('meta', property='og:title') or soup.find('meta', attrs={'name': 'twitter:title'}) or soup.find('title')
             data["title"] = tag.get('content') if tag and tag.name == 'meta' else (tag.text if tag else "")
 
         if not data["description"]:
-            tag = soup.find('meta', property='og:description') or soup.find('meta', name='description')
+            tag = soup.find('meta', property='og:description') or soup.find('meta', attrs={'name': 'description'})
             data["description"] = tag.get('content') if tag else ""
 
         # Preço Fallback
