@@ -580,6 +580,37 @@ def fetch_metadata():
         # Deduplicar imagens
         data["images"] = list(dict.fromkeys(data["images"]))
 
+        # === LIMPEZA E NORMALIZAÇÃO DE DADOS (NOVO) ===
+
+        # 1. Limpar Título
+        if data["title"]:
+            # Remover sufixos comuns de lojas
+            suffixes = [
+                r" - .*?$", r" | .*?$", r" \.\.\.$",
+                r" - Compre Agora.*?$", r" - Loja Oficial",
+                r" Oficial$", r" \| Mercado Livre.*$"
+            ]
+            for s in suffixes:
+                data["title"] = re.sub(s, "", data["title"]).strip()
+
+            # Capitalização de palavras (Title Case) se estiver tudo em grifo ou minúsculo
+            if data["title"].isupper() or data["title"].islower():
+                data["title"] = data["title"].title()
+
+        # 2. Normalizar Descrição
+        if data["description"]:
+            # Remover excesso de espaços e quebras de linha
+            data["description"] = re.sub(r'\s+', ' ', data["description"]).strip()
+            if len(data["description"]) > 500:
+                data["description"] = data["description"][:497] + "..."
+
+        # 3. Normalizar Preço (Garantir 2 casas e valor numérico)
+        try:
+            if data["price"]:
+                data["price"] = round(float(data["price"]), 2)
+        except:
+            data["price"] = 0.0
+
         # Video
         if not data["video"]:
             vid = re.search(r'property=["\']og:video["\'] content=["\'](.*?)["\']', html)

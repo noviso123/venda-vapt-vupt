@@ -325,6 +325,34 @@
     </div>
 </div>
 
+<!-- LOADER OVERLAY -->
+<div id="loader-overlay" class="loader-overlay">
+    <div class="loader-card">
+        <div class="spinner"></div>
+        <h3 class="text-xl font-bold text-slate-800 mb-2">Importando Produto...</h3>
+        <p class="text-slate-500 text-sm mb-6">Estamos buscando e processando os dados do anúncio.</p>
+
+        <div class="loader-steps">
+            <div id="step-1" class="loader-step active">
+                <div class="loader-step-dot"></div>
+                <span>Analisando página do produto...</span>
+            </div>
+            <div id="step-2" class="loader-step">
+                <div class="loader-step-dot"></div>
+                <span>Baixando e validando imagens...</span>
+            </div>
+            <div id="step-3" class="loader-step">
+                <div class="loader-step-dot"></div>
+                <span>Salvando no servidor...</span>
+            </div>
+            <div id="step-4" class="loader-step">
+                <div class="loader-step-dot"></div>
+                <span>Finalizando importação...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     function switchTab ( tab )
     {
@@ -345,16 +373,53 @@
         const url = document.getElementById( 'import_url' ).value;
         if ( !url ) return alert( 'Insira uma URL válida' );
 
-        const btn = event.target;
-        btn.innerText = 'BUSCANDO...';
-        btn.disabled = true;
+        const loader = document.getElementById( 'loader-overlay' );
+        const steps = {
+            1: document.getElementById( 'step-1' ),
+            2: document.getElementById( 'step-2' ),
+            3: document.getElementById( 'step-3' ),
+            4: document.getElementById( 'step-4' )
+        };
+
+        const setStep = ( num, status ) =>
+        {
+            Object.values( steps ).forEach( s => s.classList.remove( 'active' ) );
+            steps[ num ].classList.add( 'active' );
+            if ( status === 'completed' )
+            {
+                for ( let i = 1; i < num; i++ )
+                {
+                    steps[ i ].classList.add( 'completed' );
+                    steps[ i ].classList.remove( 'active' );
+                }
+            }
+        };
+
+        loader.classList.add( 'active' );
+        setStep( 1, 'active' );
 
         try
         {
+            // Simular progresso visual enquanto o backend trabalha
+            const progressTimer = setTimeout( () =>
+            {
+                setStep( 2, 'active' );
+                steps[ 1 ].classList.add( 'completed' );
+            }, 1000 );
+
             const res = await fetch( `/vendedor/fetch-metadata?url=${ encodeURIComponent( url ) }` );
+
+            clearTimeout( progressTimer );
+            setStep( 3, 'active' );
+            steps[ 1 ].classList.add( 'completed' );
+            steps[ 2 ].classList.add( 'completed' );
+
             const data = await res.json();
 
             if ( data.error ) throw new Error( data.error );
+
+            setStep( 4, 'active' );
+            steps[ 3 ].classList.add( 'completed' );
 
             document.getElementById( 'p_name' ).value = data.title || '';
             document.getElementById( 'p_desc' ).value = data.description || '';
@@ -400,20 +465,28 @@
                 }
             }
 
-            let msg = data.images_persisted
-                ? `✓ IMPORTAÇÃO COMPLETA! ${ data.images.length } imagem(ns) salvas no servidor.`
-                : 'Dados importados (imagens externas).';
-            if ( data.price ) msg += ` Preço: R$ ${ data.price }`;
-            if ( data.video ) msg += ` Vídeo detectado.`;
+            // Aguarda um pouco no último passo para o usuário ver
+            await new Promise( r => setTimeout( r, 500 ) );
+            steps[ 4 ].classList.add( 'completed' );
 
-            alert( msg + '\n\nClique em PUBLICAR para finalizar.' );
+            setTimeout( () =>
+            {
+                loader.classList.remove( 'active' );
+                // Pequeno delay para remover as classes completed antes da próxima vez
+                setTimeout( () =>
+                {
+                    Object.values( steps ).forEach( s =>
+                    {
+                        s.classList.remove( 'active', 'completed' );
+                    } );
+                    steps[ 1 ].classList.add( 'active' );
+                }, 500 );
+            }, 800 );
+
         } catch ( e )
         {
+            loader.classList.remove( 'active' );
             alert( 'Erro ao importar: ' + e.message );
-        } finally
-        {
-            btn.innerText = 'IMPORTAR';
-            btn.disabled = false;
         }
     }
 
