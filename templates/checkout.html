@@ -1,72 +1,145 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8 text-center text-slate-800">Finalizar Compra</h1>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- FORMULÁRIO -->
-        <div class="md:col-span-2">
-            <div class="glass p-8 rounded-3xl shadow-xl">
-                <form action="/finalizar_pedido" method="POST" class="space-y-6">
-                    <input type="hidden" name="store_id" value="{{ store.id }}">
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-2 text-slate-600">Seu Nome</label>
-                        <input type="text" name="name" required placeholder="Ex: João Silva"
-                            class="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-2 text-slate-600">WhatsApp</label>
-                        <input type="tel" name="whatsapp" required placeholder="Ex: (11) 99999-9999"
-                            class="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-2 text-slate-600">Endereço de Entrega</label>
-                        <textarea name="address" required rows="3" placeholder="Rua, Número, Bairro, Cidade - Estado"
-                            class="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></textarea>
-                        <p class="text-xs text-slate-400 mt-2">Nossos motoboys da Uber entregam em minutos!</p>
-                    </div>
-
-                    <button type="submit"
-                        class="w-full py-4 btn-primary text-white rounded-2xl font-bold text-lg active:scale-95 transition-all shadow-lg shadow-indigo-200">
-                        Confirmar e Ver Pix
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- RESUMO -->
-        <div class="md:col-span-1">
-            <div class="glass p-6 rounded-3xl sticky top-24">
-                <h3 class="font-bold text-lg mb-4 text-slate-800 border-bottom pb-4 border-slate-100">Resumo</h3>
-                <div class="space-y-4 mb-6">
-                    {% for item in items %}
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-500">{{ item.qty }}x {{ item.name }}</span>
-                        <span class="font-semibold">R$ {{ "%.2f"|format(item.subtotal) }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <div class="border-t border-slate-100 pt-4 space-y-2">
-                    <div class="flex justify-between text-sm text-slate-500">
-                        <span>Produtos</span>
-                        <span>R$ {{ "%.2f"|format(total) }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm text-slate-500">
-                        <span>Entrega (Uber)</span>
-                        <span>R$ 15,00</span>
-                    </div>
-                    <div class="flex justify-between text-xl font-bold text-slate-900 pt-2">
-                        <span>Total</span>
-                        <span>R$ {{ "%.2f"|format(total + 15) }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="max-w-3xl mx-auto">
+    <div class="mb-12 text-center">
+        <h2 class="text-3xl font-black text-slate-800 mb-2">Finalizar Compra</h2>
+        <p class="text-slate-500">Preencha seus dados para entrega e pagamento.</p>
     </div>
+
+    <form action="/checkout" method="POST" class="space-y-8">
+        <div class="glass p-8 rounded-3xl space-y-6">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Dados Pessoais
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-bold mb-2">Seu Nome Completo</label>
+                    <input type="text" name="name" required placeholder="Ex: João Silva"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2">WhatsApp</label>
+                    <input type="text" name="whatsapp" required placeholder="Ex: 5511999999999"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+            </div>
+        </div>
+
+        <div class="glass p-8 rounded-3xl space-y-6">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Endereço de Entrega
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-bold mb-2">CEP</label>
+                    <input type="text" name="cep" id="cep" required placeholder="00000-000" maxlength="9"
+                        onblur="lookupCep(this.value)"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary font-mono">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold mb-2">Rua / Logradouro</label>
+                    <input type="text" name="street" id="street" required placeholder="Aguardando CEP..."
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="col-span-1">
+                    <label class="block text-sm font-bold mb-2">Número</label>
+                    <input type="text" name="number" id="number" required placeholder="Nº"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+                <div class="col-span-1 md:col-span-3">
+                    <label class="block text-sm font-bold mb-2">Complemento</label>
+                    <input type="text" name="complement" placeholder="Apt, Bloco, etc (Opcional)"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-bold mb-2">Bairro</label>
+                    <input type="text" name="neighborhood" id="neighborhood" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2">Cidade</label>
+                    <input type="text" name="city" id="city" required
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2">UF</label>
+                    <input type="text" name="state" id="state" required maxlength="2"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-primary uppercase">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit"
+            class="w-full py-5 bg-primary text-white rounded-2xl font-black text-xl shadow-xl shadow-blue-100 hover:scale-[1.02] transition-all">
+            Confirmar Pedido e Ver PIX
+        </button>
+    </form>
 </div>
+
+<script>
+    function lookupCep ( cep )
+    {
+        cep = cep.replace( /\D/g, '' );
+        if ( cep.length === 8 )
+        {
+            const streetInput = document.getElementById( 'street' );
+            const neighborhoodInput = document.getElementById( 'neighborhood' );
+            const cityInput = document.getElementById( 'city' );
+            const stateInput = document.getElementById( 'state' );
+            const numberInput = document.getElementById( 'number' );
+
+            streetInput.value = 'Buscando...';
+
+            fetch( `https://viacep.com.br/ws/${ cep }/json/` )
+                .then( response => response.json() )
+                .then( data =>
+                {
+                    if ( !data.erro )
+                    {
+                        streetInput.value = data.logradouro;
+                        neighborhoodInput.value = data.bairro;
+                        cityInput.value = data.localidade;
+                        stateInput.value = data.uf;
+                        numberInput.focus();
+                    } else
+                    {
+                        alert( 'CEP não encontrado.' );
+                        streetInput.value = '';
+                    }
+                } )
+                .catch( () =>
+                {
+                    alert( 'Erro ao buscar CEP.' );
+                    streetInput.value = '';
+                } );
+        }
+    }
+
+    // Máscara básica para CEP
+    document.getElementById( 'cep' ).addEventListener( 'input', function ( e )
+    {
+        var x = e.target.value.replace( /\D/g, '' ).match( /(\d{0,5})(\d{0,3})/ );
+        e.target.value = !x[ 2 ] ? x[ 1 ] : x[ 1 ] + '-' + x[ 2 ];
+    } );
+</script>
 {% endblock %}

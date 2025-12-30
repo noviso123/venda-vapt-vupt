@@ -1,4 +1,4 @@
--- 1. TABELA DE LOJAS (Configurações Únicas)
+-- 1. TABELA DE LOJAS
 CREATE TABLE IF NOT EXISTS stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     slug TEXT UNIQUE NOT NULL DEFAULT 'default',
@@ -11,16 +11,13 @@ CREATE TABLE IF NOT EXISTS stores (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- GARANTIR COLUNAS NOVAS (Importante para quem já tinha a tabela antiga)
+-- GARANTIR COLUNAS (Fase 6)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_user TEXT DEFAULT 'admin';
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS admin_password TEXT DEFAULT 'vaptvupt123';
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_key TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_name TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS pix_city TEXT DEFAULT 'SAO PAULO';
-ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_street TEXT;
-ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_number TEXT;
-ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_city TEXT;
-ALTER TABLE stores ADD COLUMN IF NOT EXISTS address_state TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS whatsapp_message TEXT DEFAULT 'Olá! Gostaria de falar sobre meu pedido no site.';
 
 -- 2. TABELA DE PRODUTOS
 CREATE TABLE IF NOT EXISTS products (
@@ -31,6 +28,7 @@ CREATE TABLE IF NOT EXISTS products (
     price DECIMAL(10,2) NOT NULL,
     image_url TEXT,
     weight_kg DECIMAL(5,3) DEFAULT 0.5,
+    stock_quantity INTEGER DEFAULT 99, -- NOVO: ESTOQUE
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -70,11 +68,11 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE INDEX IF NOT EXISTS idx_stores_slug ON stores(slug);
 CREATE INDEX IF NOT EXISTS idx_products_store ON products(store_id);
 
--- Loja Inicial Default (Se não existir)
+-- Loja Inicial Default
 INSERT INTO stores (slug, name, whatsapp)
 SELECT 'default', 'Venda Vapt Vupt', '5511999999999'
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE slug = 'default');
 
--- Atualizar caso já exista mas esteja sem login
+-- Garantir acesso
 UPDATE stores SET admin_user = 'admin', admin_password = 'vaptvupt123'
 WHERE slug = 'default' AND (admin_user IS NULL OR admin_user = '');

@@ -1,71 +1,67 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto text-center">
-    <div
-        class="bg-green-100 text-green-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 scale-110 shadow-lg border-4 border-white">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-        </svg>
+<div class="max-w-2xl mx-auto text-center space-y-8">
+    <div class="glass p-10 rounded-3xl">
+        <div
+            class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        </div>
+        <h2 class="text-3xl font-black text-slate-800 mb-2">Pedido Confirmado!</h2>
+        <p class="text-slate-500">Sua reserva foi feita. Agora basta realizar o pagamento.</p>
     </div>
 
-    <h1 class="text-4xl font-bold mb-2">Pedido Recebido!</h1>
-    <p class="text-slate-500 mb-10 text-lg">Seu pedido #{{ order.id[:8] }} está aguardando o Pix.</p>
-
-    <div class="glass p-8 rounded-[3rem] shadow-2xl mb-8 relative overflow-hidden">
-        <div class="absolute -top-12 -right-12 w-32 h-32 bg-indigo-100 rounded-full opacity-50"></div>
-
-        <h3 class="font-bold text-xl mb-6 flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Pagamento via Pix
-        </h3>
-
-        <div class="bg-white p-6 rounded-3xl inline-block shadow-inner mb-6 border-2 border-indigo-50">
-            <img src="data:image/png;base64,{{ qr_code }}" class="w-64 h-64 grayscale-0 contrast-125">
+    <!-- ÁREA DO PIX -->
+    <div class="glass p-10 rounded-3xl border-2 border-primary/10">
+        <h3 class="text-xl font-bold mb-6">Pague com PIX</h3>
+        <div class="bg-white p-4 rounded-2xl inline-block mb-6 shadow-sm">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code PIX" class="w-48 h-48">
         </div>
 
         <div class="space-y-4">
-            <div class="text-3xl font-black text-slate-800">
-                R$ {{ "%.2f"|format(order.total) }}
+            <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Código Copia e Cola</p>
+            <div class="flex gap-2">
+                <input type="text" readonly value="{{ payload }}" id="pix-code"
+                    class="flex-1 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono truncate">
+                <button onclick="copyPix()"
+                    class="bg-primary text-white px-6 rounded-xl font-bold text-sm">Copiar</button>
             </div>
-
-            <div class="bg-slate-100 p-4 rounded-2xl break-all text-xs font-mono text-slate-600 relative group">
-                {{ payload }}
-                <button onclick="copyPayload()"
-                    class="absolute right-2 top-2 bg-white p-2 rounded-lg shadow hover:bg-slate-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                    </svg>
-                </button>
-            </div>
+            <p class="text-2xl font-black text-primary">R$ {{ "%.2f"|format(order.total) }}</p>
         </div>
     </div>
 
-    <div class="space-y-6">
-        <a href="https://wa.me/{{ order.stores.whatsapp }}?text=Olá, acabei de fazer o pedido #{{ order.id[:8] }} e o pagamento do Pix."
-            class="inline-flex items-center gap-3 text-primary font-bold hover:underline">
+    <!-- BOTÃO WHATSAPP INTELIGENTE -->
+    {% if wa_link %}
+    <div class="glass p-8 rounded-3xl border-2 border-emerald-500/10">
+        <h3 class="text-lg font-bold mb-4">Deseja agilizar sua entrega?</h3>
+        <p class="text-slate-500 text-sm mb-6">Envie o comprovante e o resumo do pedido agora pelo WhatsApp.</p>
+        <a href="{{ wa_link }}" target="_blank"
+            class="inline-flex items-center justify-center gap-3 w-full py-5 bg-emerald-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-100 hover:scale-105 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
                 <path
-                    d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.319 1.592 5.548 0 10.064-4.516 10.066-10.066.003-5.385-4.482-9.766-9.844-9.766-5.412 0-9.819 4.407-9.822 9.819 0 2.153.603 3.513 1.627 5.28l-1.071 3.909 4.025-1.056z" />
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72 1.004 3.73 1.536 5.77 1.538h.005c6.554 0 11.89-5.335 11.893-11.893a11.9 11.9 0 00-3.481-8.414z" />
             </svg>
-            Enviar Comprovante via WhatsApp
+            ENVIAR RESUMO PELO WHATSAPP
         </a>
-        <p class="text-sm text-slate-400">Assim que você pagar, o motoboy da Uber será chamado automaticamente.</p>
+    </div>
+    {% endif %}
+
+    <div class="py-10">
+        <a href="/" class="text-primary font-bold hover:underline">Voltar para a loja</a>
     </div>
 </div>
 
 <script>
-    function copyPayload ()
+    function copyPix ()
     {
-        const payload = "{{ payload }}";
-        navigator.clipboard.writeText( payload );
-        alert( "Pix Copia e Cola copiado!" );
+        var copyText = document.getElementById( "pix-code" );
+        copyText.select();
+        copyText.setSelectionRange( 0, 99999 );
+        navigator.clipboard.writeText( copyText.value );
+        alert( "Código copiado!" );
     }
 </script>
 {% endblock %}
