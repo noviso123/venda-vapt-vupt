@@ -560,14 +560,45 @@ def fetch_metadata():
             vid = re.search(r'property=["\']og:video["\'] content=["\'](.*?)["\']', html)
             if vid: data["video"] = vid.group(1)
 
+        # === PIPELINE REAL DE IMPORTAÇÃO: BAIXAR E PERSISTIR IMAGENS ===
+        persisted_images = []
+        main_image_persisted = ""
+
+        app.logger.info(f"Iniciando download de {len(data['images'])} imagens encontradas...")
+
+        for i, img_url in enumerate(data["images"][:5]):  # Limite de 5 imagens
+            try:
+                app.logger.info(f"Baixando imagem {i+1}: {img_url[:50]}...")
+                persisted_url = download_and_persist_image(img_url, prefix=f"import_{uuid.uuid4().hex[:8]}")
+
+                if persisted_url:
+                    persisted_images.append(persisted_url)
+                    if i == 0:
+                        main_image_persisted = persisted_url
+                    app.logger.info(f"✓ Imagem {i+1} persistida: {persisted_url[:50]}...")
+                else:
+                    # Fallback: manter URL original se download falhar
+                    persisted_images.append(img_url)
+                    if i == 0:
+                        main_image_persisted = img_url
+                    app.logger.warning(f"✗ Imagem {i+1} não baixada, usando URL original")
+            except Exception as img_err:
+                app.logger.error(f"Erro ao baixar imagem {i+1}: {img_err}")
+                persisted_images.append(img_url)  # Fallback
+                if i == 0:
+                    main_image_persisted = img_url
+
+        app.logger.info(f"Importação concluída: {len(persisted_images)} imagens processadas")
+
         return jsonify({
             "title": data["title"],
             "description": data["description"],
-            "image": data["images"][0] if data["images"] else "",
-            "images": data["images"],
+            "image": main_image_persisted,
+            "images": persisted_images,
             "video": data["video"],
             "price": data["price"],
-            "stock": 1
+            "stock": 1,
+            "images_persisted": True  # Flag para frontend saber que imagens já estão salvas
         })
 
     except Exception as e:

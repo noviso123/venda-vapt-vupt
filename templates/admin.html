@@ -374,6 +374,13 @@
                 previewContainer.classList.remove( 'hidden' );
                 previewImg.src = data.images[ 0 ];
 
+                // Indicar se imagens foram persistidas
+                const statusText = document.querySelector( '#img_preview_container .text-xs' );
+                if ( statusText && data.images_persisted )
+                {
+                    statusText.innerHTML = '✓ <span class="text-green-600 font-bold">Imagem salva no servidor!</span>';
+                }
+
                 // Mostrar galeria extra se houver mais de 1 imagem
                 if ( data.images.length > 1 )
                 {
@@ -381,17 +388,25 @@
                     const grid = document.getElementById( 'extra_imgs_grid' );
                     extraContainer.classList.remove( 'hidden' );
                     grid.innerHTML = data.images.slice( 1 ).map( img =>
-                        `<img src="${ img }" class="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-sm">`
+                        `<img src="${ img }" class="w-12 h-12 object-cover rounded-lg border-2 border-green-400 shadow-sm">`
                     ).join( '' );
+                }
+
+                // Esconder upload manual (imagem já importada)
+                const fileUpload = document.getElementById( 'file-upload-zone' );
+                if ( fileUpload )
+                {
+                    fileUpload.style.display = 'none';
                 }
             }
 
-            let msg = 'Dados importados!';
-            if ( data.images && data.images.length > 1 ) msg += ` Encontradas ${ data.images.length } imagens.`;
-            if ( data.price ) msg += ` Preço detectado: R$ ${ data.price }`;
+            let msg = data.images_persisted
+                ? `✓ IMPORTAÇÃO COMPLETA! ${ data.images.length } imagem(ns) salvas no servidor.`
+                : 'Dados importados (imagens externas).';
+            if ( data.price ) msg += ` Preço: R$ ${ data.price }`;
             if ( data.video ) msg += ` Vídeo detectado.`;
 
-            alert( msg + ' Salve o produto para confirmar.' );
+            alert( msg + '\n\nClique em PUBLICAR para finalizar.' );
         } catch ( e )
         {
             alert( 'Erro ao importar: ' + e.message );
