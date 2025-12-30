@@ -115,11 +115,32 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold mb-2">Foto / Imagem</label>
+
+                    <!-- Preview da Imagem Importada -->
+                    <div id="img_preview_container" class="hidden mb-3">
+                        <div class="flex items-start gap-3">
+                            <img id="img_preview" src="" alt="Preview"
+                                class="w-24 h-24 object-cover rounded-xl border-2 border-sky-500 shadow-lg">
+                            <div class="flex-1">
+                                <p class="text-xs text-sky-600 font-bold mb-1">✓ Imagem Importada</p>
+                                <input type="text" name="image_url" id="p_img" placeholder="URL da imagem"
+                                    class="w-full px-3 py-2 rounded-lg border border-sky-200 text-xs bg-sky-50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Galeria de Imagens Extras Importadas -->
+                    <div id="extra_imgs_preview" class="hidden mb-3">
+                        <p class="text-xs text-slate-500 font-bold mb-2">Galeria Importada:</p>
+                        <div id="extra_imgs_grid" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- Upload Manual -->
                     <div class="flex gap-2">
                         <input type="file" name="file" accept="image/*"
                             class="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-xs">
-                        <input type="hidden" name="image_url" id="p_img">
                     </div>
+                    <input type="hidden" name="extra_images" id="p_extra_images">
                 </div>
                 <button type="submit"
                     class="w-full py-5 btn-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 transition-all hover:scale-[1.02]">
@@ -344,6 +365,23 @@
             if ( data.images && data.images.length > 0 )
             {
                 document.getElementById( 'p_extra_images' ).value = JSON.stringify( data.images );
+
+                // Mostrar preview da primeira imagem
+                const previewContainer = document.getElementById( 'img_preview_container' );
+                const previewImg = document.getElementById( 'img_preview' );
+                previewContainer.classList.remove( 'hidden' );
+                previewImg.src = data.images[ 0 ];
+
+                // Mostrar galeria extra se houver mais de 1 imagem
+                if ( data.images.length > 1 )
+                {
+                    const extraContainer = document.getElementById( 'extra_imgs_preview' );
+                    const grid = document.getElementById( 'extra_imgs_grid' );
+                    extraContainer.classList.remove( 'hidden' );
+                    grid.innerHTML = data.images.slice( 1 ).map( img =>
+                        `<img src="${ img }" class="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-sm">`
+                    ).join( '' );
+                }
             }
 
             let msg = 'Dados importados!';
