@@ -530,6 +530,60 @@ def update_order_status(order_id):
 
 # --- NOVAS FUNCIONALIDADES AVANÇADAS ---
 
+def optimize_marketing_data(raw_data):
+    """
+    IA de Marketing: Otimiza título e descrição para venda profissional.
+    """
+    title = raw_data.get('title', '').strip()
+    desc = raw_data.get('description', '').strip()
+
+    # 1. Otimização de Título (Magnético)
+    if title:
+        # Remover lixo comum de SEO/venda
+        cleanups = [
+            r" - .*?$", r" | .*?$", r" lojas? oficial$", r" frete grátis.*$",
+            r" cupom de desconto.*$", r" compre aqui.*$", r" melhor preço.*$"
+        ]
+        for pattern in cleanups:
+            title = re.sub(pattern, "", title, flags=re.I).strip()
+
+        # Se for muito longo, focar no essencial (Marca + Objeto)
+        if len(title) > 70:
+            title = title[:67] + "..."
+
+        # Title Case amigável
+        if title.isupper() or title.islower():
+            title = title.title()
+
+    # 2. Otimização de Descrição (Structure & Copywriting)
+    if desc:
+        # Limpar excesso de HTML/Espaços
+        desc = re.sub(r'<[^>]+>', '', desc)
+        desc = re.sub(r'\s+', ' ', desc).strip()
+
+        # Identificar se já tem bullets ou criar estrutura
+        points = []
+        # Tentar quebrar por pontos ou frases longas para criar bullets
+        potential_points = re.split(r'[;.]', desc)
+        for p in potential_points:
+            p = p.strip()
+            if len(p) > 20 and len(points) < 5:
+                # Adicionar emoji de destaque se não tiver
+                points.append(f"✨ {p}")
+
+        # Construir Copy
+        intro = "💎 **Oportunidade Premium**\n\n"
+        if len(points) > 0:
+            body = "\n".join(points)
+        else:
+            body = desc[:300]
+
+        footer = "\n\n🚀 *Garanta o seu hoje mesmo! Estoque limitado.*"
+
+        desc = f"{intro}{body}{footer}"
+
+    return title, desc
+
 @app.route('/vendedor/fetch-metadata')
 def fetch_metadata():
     if not check_auth(): return jsonify({"error": "unauthorized"}), 401
@@ -540,9 +594,7 @@ def fetch_metadata():
         from bs4 import BeautifulSoup
         import requests
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
 
         try:
             response = requests.get(url_to_fetch, headers=headers, timeout=15)
@@ -554,67 +606,61 @@ def fetch_metadata():
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
 
-        data = {
-            "title": "",
-            "description": "",
-            "price": 0.0,
-            "images": [],
-            "video": "",
-            "stock": 1
-        }
+        data = { "title": "", "description": "", "price": 0.0, "original_price": 0.0, "images": [], "video": "", "stock": 1 }
 
         # 1. Tentar JSON-LD (Product)
         import json
         for script in soup.find_all('script', type='application/ld+json'):
             try:
-                ld = json.loads(script.string)
+                ld_text = script.string.strip()
+                if not ld_text: continue
+                ld = json.loads(ld_text)
                 if isinstance(ld, list): ld = ld[0]
 
                 target = None
                 if ld.get('@type') == 'Product': target = ld
                 elif '@graph' in ld:
                     for item in ld['@graph']:
-                        if item.get('@type') == 'Product':
-                            target = item
-                            break
+                        if item.get('@type') == 'Product': target = item; break
 
                 if target:
                     data["title"] = target.get('name', '')
                     data["description"] = target.get('description', '')
-
-                    imgs = target.get('image')
-                    if isinstance(imgs, str): data["images"].append(imgs)
-                    elif isinstance(imgs, list): data["images"].extend(imgs)
-
                     offers = target.get('offers')
                     if isinstance(offers, dict):
                         data["price"] = float(offers.get('price', 0))
                     elif isinstance(offers, list) and len(offers) > 0:
                         data["price"] = float(offers[0].get('price', 0))
+
+                    imgs = target.get('image')
+                    if isinstance(imgs, str): data["images"].append(imgs)
+                    elif isinstance(imgs, list): data["images"].extend(imgs)
                     break
             except: pass
 
-        # 2. Meta Tags Fallback
+        # 2. Meta Tags Fallback & Imagens
         if not data["title"]:
             tag = soup.find('meta', property='og:title') or soup.find('meta', name='twitter:title') or soup.find('title')
             data["title"] = tag.get('content') if tag and tag.name == 'meta' else (tag.text if tag else "")
 
         if not data["description"]:
-            tag = soup.find('meta', property='og:description') or soup.find('meta', name='description') or soup.find('meta', name='twitter:description')
+            tag = soup.find('meta', property='og:description') or soup.find('meta', name='description')
             data["description"] = tag.get('content') if tag else ""
 
+        # Preço Fallback
         if not data["price"]:
             price_tag = soup.find('meta', property='product:price:amount') or soup.find('meta', property='og:price:amount')
             if price_tag:
                 try: data["price"] = float(price_tag.get('content'))
                 except: pass
             else:
+                import re
                 price_match = re.search(r'R\$\s?(\d+[.,]?\d*)', soup.get_text())
                 if price_match:
                     try: data["price"] = float(price_match.group(1).replace('.', '').replace(',', '.'))
                     except: pass
 
-        # 3. EXTRAÇÃO DE IMAGENS
+        # 3. EXTRAÇÃO DE IMAGENS PREMIUM
         found_imgs = []
         og_img = soup.find('meta', property='og:image')
         if og_img: found_imgs.append(og_img.get('content'))
@@ -625,27 +671,24 @@ def fetch_metadata():
                 from urllib.parse import urljoin
                 src = urljoin(url_to_fetch, src)
 
+            # Filtro inteligente: excluir imagens pequenas ou sem contexto de produto
             alt = img.get('alt', '').lower()
-            src_lower = src.lower()
-            if any(x in src_lower or x in alt for x in ['icon', 'logo', 'button', 'sprite', 'banner', 'pixel']):
-                continue
+            width = img.get('width', '100')
+            try: w = int(re.sub(r'\D', '', width))
+            except: w = 100
+
+            if any(x in src.lower() or x in alt for x in ['icon', 'logo', 'button', 'sprite', 'pixel', 'banner']): continue
+            if w < 50: continue # Provável ícone
             found_imgs.append(src)
 
         data["images"] = list(dict.fromkeys(found_imgs))
 
-        # === LIMPEZA E NORMALIZAÇÃO ===
-        if data["title"]:
-            suffixes = [r" - .*?$", r" | .*?$", r" \.\.\.$", r" lojas?", r" oficial$", r" compre agora.*$"]
-            for s in suffixes:
-                data["title"] = re.sub(s, "", data["title"], flags=re.I).strip()
-            if data["title"].isupper() or data["title"].islower():
-                data["title"] = data["title"].title()
+        # === CAMADA DE INTELIGÊNCIA DE MARKETING ===
+        opt_title, opt_desc = optimize_marketing_data(data)
+        data["title"] = opt_title
+        data["description"] = opt_desc
 
-        if data["description"]:
-            data["description"] = re.sub(r'\s+', ' ', data["description"]).strip()
-            if len(data["description"]) > 500:
-                data["description"] = data["description"][:497] + "..."
-
+        # Finalizar Preço
         data["price"] = round(float(data["price"] or 0), 2)
 
         # Video
@@ -658,15 +701,13 @@ def fetch_metadata():
 
         for i, img_url in enumerate(data["images"][:5]):
             try:
-                persisted_url = download_and_persist_image(img_url, prefix=f"import_{uuid.uuid4().hex[:8]}")
+                # Sufixo informativo para o log
+                persisted_url = download_and_persist_image(img_url, prefix=f"expert_{uuid.uuid4().hex[:6]}")
                 if persisted_url:
                     persisted_images.append(persisted_url)
                     if i == 0: main_image_persisted = persisted_url
-                else:
-                    persisted_images.append(img_url)
-                    if i == 0: main_image_persisted = img_url
-            except:
-                persisted_images.append(img_url)
+                else: persisted_images.append(img_url)
+            except: persisted_images.append(img_url)
 
         return jsonify({
             "title": data["title"],
@@ -680,7 +721,7 @@ def fetch_metadata():
         })
 
     except Exception as e:
-        app.logger.error(f"Erro Scraper: {e}")
+        app.logger.error(f"Erro Scraper Inteligente: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/vendedor/produto/<product_id>/imagem/nova', methods=['POST'])
