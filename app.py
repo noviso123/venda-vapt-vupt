@@ -19,65 +19,50 @@ url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
-# --- AUTO SETUP DO BANCO ---
+# --- AUTO SETUP DO BANCO/SCHEMA ---
 def init_db():
     try:
+        # Garantir Store padrão
         res = supabase.table('stores').select("id").eq('slug', 'default').execute()
         if not res.data:
-            supabase.table('stores').upsert({
+            supabase.table('stores').insert({
                 "slug": "default",
                 "name": "Venda Vapt Vupt",
                 "whatsapp": "5511999999999",
                 "admin_user": "admin",
-                "admin_password": "admin",
-                "whatsapp_message": "Olá! Quero comprar estes itens: "
+                "admin_password": "admin"
             }).execute()
-        # Sincronização agressiva de Schema
-        # Tabela stores
-        try:
-            supabase.table('stores').update({"admin_user": "admin"}).eq('slug', 'default').execute()
-        except: pass
 
-        # Tabela products (Novas colunas)
-        try:
-            # Tentar adicionar external_url
-            supabase.rpc('add_column_if_not_exists', {
-                't_name': 'products', 'c_name': 'external_url', 'c_type': 'TEXT'
-            }).execute()
-        except: pass
-        try:
-            # Tentar adicionar is_active
-            supabase.rpc('add_column_if_not_exists', {
-                't_name': 'products', 'c_name': 'is_active', 'c_type': 'BOOLEAN DEFAULT TRUE'
-            }).execute()
+        # Sincronização de Colunas (Schema Evolution)
+        rpc_cols = [
+            {'t_name': 'products', 'c_name': 'external_url', 'c_type': 'TEXT'},
+            {'t_name': 'products', 'c_name': 'is_active', 'c_type': 'BOOLEAN DEFAULT TRUE'},
+            {'t_name': 'products', 'c_name': 'clicks_count', 'c_type': 'INTEGER DEFAULT 0'},
+            {'t_name': 'stores', 'c_name': 'pix_key', 'c_type': 'TEXT'},
+            {'t_name': 'stores', 'c_name': 'pix_name', 'c_type': 'TEXT'},
+            {'t_name': 'stores', 'c_name': 'pix_city', 'c_type': 'TEXT'}
+        ]
+        for col in rpc_cols:
+            try: supabase.rpc('add_column_if_not_exists', col).execute()
+            except: pass
+
+        # Forçar admin/admin
+        try: supabase.table('stores').update({"admin_user": "admin", "admin_password": "admin"}).eq('slug', 'default').execute()
         except: pass
     except Exception as e:
-        print(f"Erro no init_db: {e}")
+        print(f"Erro init_db: {e}")
 
 init_db()
 
+# --- HELPERS ---
 def get_store():
-    fallback_store = {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "name": "Minha Loja Vapt Vupt",
-        "whatsapp": "5511999999999",
-        "primary_color": "#10B981",
-        "secondary_color": "#059669",
-        "logo_url": None,
-        "whatsapp_message": "Olá!"
-    }
+    fallback = {"id": str(uuid.uuid4()), "name": "Vapt Vupt", "whatsapp": "5511999999999", "primary_color": "#10B981"}
     try:
         res = supabase.table('stores').select("*").eq('slug', 'default').execute()
-        if res.data: return res.data[0]
-        init_db()
-        res = supabase.table('stores').select("*").eq('slug', 'default').execute()
-        return res.data[0] if res.data else fallback_store
-    except:
-        return fallback_store
+        return res.data[0] if res.data else fallback
+    except: return fallback
 
-# --- HELPERS ---
-def check_auth():
-    return 'is_admin' in session
+def check_auth(): return 'is_admin' in session
 
 def generate_wa_link(phone, base_msg, cart_items=None, total=None):
     msg = base_msg
@@ -85,53 +70,64 @@ def generate_wa_link(phone, base_msg, cart_items=None, total=None):
         msg += "\n\n📋 *MEU PEDIDO:*\n"
         for item in cart_items:
             msg += f"- {item['quantity']}x {item['name']}\n"
-        if total:
-            msg += f"\n💰 *TOTAL:* R$ {total:.2f}"
+        if total: msg += f"\n💰 *TOTAL:* R$ {total:.2f}"
+    return f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
 
-    encoded_msg = urllib.parse.quote(msg)
-    return f"https://wa.me/{phone}?text={encoded_msg}"
-
-# --- ROTAS PRINCIPAIS (VITRINE) ---
-
+# --- ROTAS VITRINE ---
 @app.route('/')
 def index():
     store = get_store()
     query = request.args.get('q', '').strip()
     products = []
-
     try:
-        if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
-            req = supabase.table('products').select("*").eq('store_id', store['id'])
-            if query:
-                req = req.ilike('name', f'%{query}%')
-            products_res = req.execute()
-            products = products_res.data if products_res.data else []
-    except Exception as e:
-        app.logger.error(f"Erro Vitrine: {e}")
+        req = supabase.table('products').select("*").eq('store_id', store['id'])
+        if query: req = req.ilike('name', f'%{query}%')
+        products = req.order('created_at', desc=True).execute().data or []
+    except Exception as e: app.logger.error(f"Erro Vitrine: {e}")
 
     try:
         return render_template('store.html', store=store, products=products, query=query)
     except Exception as e:
-        app.logger.error(f"Erro ao renderizar Vitrine: {e}")
+        app.logger.error(f"Erro Render: {e}")
         return render_template('error.html', error="Erro de exibição", store=store), 500
 
-@app.errorhandler(404)
-def page_not_found(e):
-    st = None
-    try: st = get_store()
+@app.route('/clique/<product_id>')
+def track_click(product_id):
+    try:
+        # Incrementa contador de cliques de forma atômica se possível, ou via update simples
+        p_res = supabase.table('products').select("external_url, clicks_count").eq('id', product_id).execute()
+        if p_res.data:
+            prod = p_res.data[0]
+            current_clicks = prod.get('clicks_count') or 0
+            supabase.table('products').update({"clicks_count": current_clicks + 1}).eq('id', product_id).execute()
+            if prod.get('external_url'): return redirect(prod['external_url'])
     except: pass
-    return render_template('error.html', error="Página não encontrada", store=st), 404
+    return redirect(url_for('index'))
+
+@app.errorhandler(404)
+def page_not_found(e): return render_template('error.html', error="Página não encontrada", store=get_store()), 404
 
 @app.errorhandler(500)
 def server_error(e):
-    st = None
-    try: st = get_store()
-    except: pass
-    # Log detalhado do erro para diagnóstico via Vercel Logs
-    app.logger.error(f"Erro Crítico 500: {str(e)}")
-    import traceback
-    app.logger.error(traceback.format_exc())
-    return render_template('error.html', error="Erro de sistema", store=st), 500
+    app.logger.error(f"500: {e}")
+    return render_template('error.html', error="Erro interno", store=get_store()), 500
+
+@app.route('/clique/<product_id>')
+def track_click(product_id):
+    try:
+        # Tentar registrar o clique (tabela opcional)
+        # Se falhar, apenas redireciona para não travar o cliente
+        try:
+            supabase.table('product_clicks').insert({"product_id": product_id}).execute()
+        except: pass
+
+        p_res = supabase.table('products').select("external_url").eq('id', product_id).execute()
+        if p_res.data and p_res.data[0].get('external_url'):
+            return redirect(p_res.data[0]['external_url'])
+    except Exception as e:
+        app.logger.error(f"Erro Click Track: {e}")
+
+    return redirect(url_for('index'))
 
 @app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
@@ -362,7 +358,7 @@ def admin_add_product():
         "name": request.form.get('name'),
         "description": request.form.get('description'),
         "price": float(request.form.get('price') or 0),
-        "stock_quantity": int(request.form.get('stock_quantity', 99)),
+        "stock_quantity": int(request.form.get('stock_quantity', 1)),
         "image_url": request.form.get('image_url'),
         "external_url": request.form.get('external_url')
     }
@@ -399,31 +395,51 @@ def fetch_metadata():
 
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url_to_fetch, headers=headers, timeout=10)
+        response = requests.get(url_to_fetch, headers=headers, timeout=15)
         html = response.text
 
-        title = ""
-        image = ""
-        description = ""
+        def find_meta(patterns, text):
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+                if match: return match.group(1).strip()
+            return ""
 
-        title_match = re.search('<title>(.*?)</title>', html, re.IGNORECASE)
-        if title_match: title = title_match.group(1)
+        # Padrões para Título
+        title = find_meta([
+            r'property=["\']og:title["\'] content=["\'](.*?)["\']',
+            r'name=["\']twitter:title["\'] content=["\'](.*?)["\']',
+            r'<title>(.*?)</title>'
+        ], html)
 
-        og_title = re.search('property="og:title" content="(.*?)"', html)
-        if og_title: title = og_title.group(1)
+        # Padrões para Imagem
+        image = find_meta([
+            r'property=["\']og:image["\'] content=["\'](.*?)["\']',
+            r'name=["\']twitter:image["\'] content=["\'](.*?)["\']',
+            r'link rel=["\']image_src["\'] href=["\'](.*?)["\']'
+        ], html)
 
-        og_image = re.search('property="og:image" content="(.*?)"', html)
-        if og_image: image = og_image.group(1)
+        # Padrões para Descrição
+        description = find_meta([
+            r'property=["\']og:description["\'] content=["\'](.*?)["\']',
+            r'name=["\']twitter:description["\'] content=["\'](.*?)["\']',
+            r'name=["\']description["\'] content=["\'](.*?)["\']'
+        ], html)
 
-        og_desc = re.search('property="og:description" content="(.*?)"', html)
-        if og_desc: description = og_desc.group(1)
+        # Padrão para Vídeo (Opcional)
+        video = find_meta([
+            r'property=["\']og:video:url["\'] content=["\'](.*?)["\']',
+            r'property=["\']og:video["\'] content=["\'](.*?)["\']'
+        ], html)
 
         return jsonify({
             "title": title,
             "image": image,
-            "description": description
+            "description": description,
+            "video": video,
+            "stock": 1
         })
     except Exception as e:
+        app.logger.error(f"Erro Scraper: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/vendedor/clientes')

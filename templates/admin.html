@@ -100,7 +100,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-bold mb-2 text-blue-600">Estoque</label>
-                        <input type="number" name="stock_quantity" value="99" required
+                        <input type="number" name="stock_quantity" id="p_stock" value="1" required
                             class="w-full px-4 py-3 rounded-xl border border-blue-200">
                     </div>
                 </div>
@@ -147,12 +147,20 @@
                         EXTERNO</span>
                     {% endif %}
                 </div>
-                <div class="text-right">
-                    <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">Qtd</span>
-                    <span
-                        class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-emerald-500{% endif %} font-black text-2xl">
-                        {{ product.stock_quantity }}
-                    </span>
+                <div class="text-right flex items-center gap-4">
+                    <div class="text-center">
+                        <span class="text-[9px] font-black uppercase text-slate-400 block mb-1">Cliques</span>
+                        <span class="text-blue-500 font-black text-xl">
+                            {{ product.get('clicks_count', 0) }}
+                        </span>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-[9px] font-black uppercase text-slate-400 block mb-1">Qtd</span>
+                        <span
+                            class="{% if product.stock_quantity < 5 %}text-red-500{% else %}text-emerald-500{% endif %} font-black text-xl">
+                            {{ product.stock_quantity }}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -302,8 +310,9 @@
             document.getElementById( 'p_desc' ).value = data.description || '';
             document.getElementById( 'p_img' ).value = data.image || '';
             document.getElementById( 'p_ext' ).value = url;
+            document.getElementById( 'p_stock' ).value = data.stock || 1;
 
-            alert( 'Dados importados! Se houver uma imagem, ela foi vinculada via link.' );
+            alert( 'Dados importados! Se houver uma imagem ou vídeo, eles foram vinculados.' );
         } catch ( e )
         {
             alert( 'Erro ao importar: ' + e.message );

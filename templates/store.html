@@ -69,7 +69,8 @@
         </div>
 
         <h3 class="text-xl font-bold text-slate-800 mb-2 truncate" title="{{ product.get('name', '') }}">
-            {{ product.get('name', 'Produto') }}</h3>
+            {{ product.get('name', 'Produto') }}
+        </h3>
         <p class="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{{ product.get('description', '') }}</p>
 
         <div class="space-y-4">
@@ -91,7 +92,7 @@
             </div>
 
             {% if product.get('external_url') %}
-            <a href="{{ product.external_url }}" target="_blank"
+            <a href="/clique/{{ p_id }}" target="_blank"
                 class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black text-center block shadow-xl hover:bg-slate-900 transition-all active:scale-95 uppercase tracking-wider text-sm">
                 COMPRAR AGORA NO SITE
             </a>
@@ -165,5 +166,4 @@
         }
     } );
 </script>
-{% endblock %}
 {% endblock %}
