@@ -9,7 +9,8 @@
         <title>{{ store.name if store else 'Vapt Vupt' }} - Venda Rápida</title>
 
         <!-- FAVICON -->
-        <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+        <link rel="icon" type="image/svg+xml"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230EA5E9'/><path d='M30 50 L50 18 L44 50 L70 50 L50 82 L56 50 Z' fill='white'/></svg>">
         <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
 
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
