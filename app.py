@@ -112,23 +112,6 @@ def server_error(e):
     app.logger.error(f"500: {e}")
     return render_template('error.html', error="Erro interno", store=get_store()), 500
 
-@app.route('/clique/<product_id>')
-def track_click(product_id):
-    try:
-        # Tentar registrar o clique (tabela opcional)
-        # Se falhar, apenas redireciona para não travar o cliente
-        try:
-            supabase.table('product_clicks').insert({"product_id": product_id}).execute()
-        except: pass
-
-        p_res = supabase.table('products').select("external_url").eq('id', product_id).execute()
-        if p_res.data and p_res.data[0].get('external_url'):
-            return redirect(p_res.data[0]['external_url'])
-    except Exception as e:
-        app.logger.error(f"Erro Click Track: {e}")
-
-    return redirect(url_for('index'))
-
 @app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
     product_id = request.form.get('product_id')
