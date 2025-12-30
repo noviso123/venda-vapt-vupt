@@ -27,9 +27,14 @@ def init_db():
                 "name": "Venda Vapt Vupt",
                 "whatsapp": "5511999999999",
                 "admin_user": "admin",
-                "admin_password": "vaptvupt123",
+                "admin_password": "admin",
                 "whatsapp_message": "Olá! Quero comprar estes itens: "
             }).execute()
+        else:
+            # Garantir credenciais solicitadas se a loja padrão existir mas estiver com a antiga
+            s = res.data[0]
+            if s.get('admin_user') == 'admin' and s.get('admin_password') == 'vaptvupt123':
+                 supabase.table('stores').update({"admin_password": "admin"}).eq('slug', 'default').execute()
     except: pass
 
 init_db()
@@ -39,8 +44,8 @@ def get_store():
         "id": "00000000-0000-0000-0000-000000000000",
         "name": "Minha Loja Vapt Vupt",
         "whatsapp": "5511999999999",
-        "primary_color": "#3B82F6",
-        "secondary_color": "#10B981",
+        "primary_color": "#10B981",
+        "secondary_color": "#059669",
         "logo_url": None,
         "whatsapp_message": "Olá!"
     }
@@ -214,7 +219,7 @@ def register():
             if res.data:
                 session['customer_id'] = res.data[0]['id']
                 session['customer_name'] = res.data[0]['name']
-                return redirect(url_for('index'))
+                return redirect(url_for('customer_orders'))
         except Exception as e:
             return render_template('register.html', error=f"Erro ao cadastrar: {e}")
     return render_template('register.html')
@@ -228,7 +233,7 @@ def admin_login():
 
         # 1. Login Admin
         if (store and store.get('admin_user') == login_id and store.get('admin_password') == password) or \
-           (not store and login_id == 'admin' and password == 'vaptvupt123'):
+           (not store and login_id == 'admin' and password == 'admin'):
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
 
@@ -240,11 +245,20 @@ def admin_login():
             if c_res.data:
                 session['customer_id'] = c_res.data[0]['id']
                 session['customer_name'] = c_res.data[0]['name']
-                return redirect(url_for('index'))
+                return redirect(url_for('customer_orders'))
         except: pass
 
         return render_template('login.html', error="Login ou senha incorretos")
     return render_template('login.html')
+
+@app.route('/meus-pedidos')
+def customer_orders():
+    if 'customer_id' not in session: return redirect(url_for('admin_login'))
+    orders = []
+    try:
+        orders = supabase.table('orders').select("*, stores(*)").eq('customer_id', session['customer_id']).order('created_at', desc=True).execute().data
+    except: pass
+    return render_template('customer_orders.html', orders=orders)
 
 @app.route('/logout')
 def admin_logout():
@@ -279,7 +293,7 @@ def update_settings():
         "pix_name": request.form.get('pix_name'),
         "pix_city": request.form.get('pix_city'),
         "admin_user": request.form.get('admin_user', 'admin'),
-        "admin_password": request.form.get('admin_password', 'vaptvupt123')
+        "admin_password": request.form.get('admin_password', 'admin')
     }
     file = request.files.get('file')
     if file and file.filename:
