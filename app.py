@@ -87,15 +87,23 @@ def index():
 
     try:
         if store and store.get('id') != "00000000-0000-0000-0000-000000000000":
-            req = supabase.table('products').select("*").eq('store_id', store['id']).eq('is_active', True)
+            req = supabase.table('products').select("*").eq('store_id', store['id'])
             if query:
                 req = req.ilike('name', f'%{query}%')
             products_res = req.execute()
             products = products_res.data if products_res.data else []
     except Exception as e:
-        print(f"Erro ao carregar vitrine: {e}")
+        app.logger.error(f"Erro Vitrine: {e}")
 
     return render_template('store.html', store=store, products=products, query=query)
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', error="Página não encontrada"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template('error.html', error="Erro interno"), 500
 
 @app.route('/carrinho/adicionar', methods=['POST'])
 def add_to_cart():
