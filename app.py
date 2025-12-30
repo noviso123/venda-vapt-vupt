@@ -28,7 +28,9 @@ url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 # Injetar verify=False nas opções do cliente
-supabase: Client = create_client(url, key, options=ClientOptions(verify=False))
+# Nota: Como ClientOptions não aceita verify diretamente em algumas versões,
+# mantemos as opções padrão e garantimos que o httpx ignore SSL se houver erro global.
+supabase: Client = create_client(url, key)
 
 # --- AUTO SETUP DO BANCO/SCHEMA ---
 def init_db():
